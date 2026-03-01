@@ -3,7 +3,8 @@
 ## Requirements
 
 - **Go 1.21+** installed
-- The server compiled (`go build -o server.exe .`)
+- The server compiled (`go build -o server.exe .`) **or** downloaded from Releases:
+  - https://github.com/nzxsww/df-script-api/releases
 - A text editor to write JS
 
 ## Create Your First Plugin

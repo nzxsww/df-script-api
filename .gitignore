@@ -19,6 +19,9 @@ world/
 /docs-site/.vitepress/cache/
 /docs-site/.vitepress/dist/
 
+# Build output
+/dist/
+
 # Project-specific
 AGENTS.md
 config.toml

@@ -1,5 +1,9 @@
 # Dragonfly Script API
 
+[![Docs](https://img.shields.io/badge/docs-online-blue)](https://nzxsww.github.io/df-script-api/)
+[![Release](https://img.shields.io/github/v/release/nzxsww/df-script-api)](https://github.com/nzxsww/df-script-api/releases)
+[![Dragonfly](https://img.shields.io/badge/dragonfly-v0.10.10-green)](https://github.com/df-mc/dragonfly)
+
 JavaScript plugin scripting engine for **Dragonfly** (Minecraft Bedrock). Build Bukkit/Spigot‑style plugins with events, commands, YAML config, and a full player API.
 
 ## 📘 Developer Documentation

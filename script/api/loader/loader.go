@@ -899,16 +899,21 @@ func (l *Loader) registerServer(vm *goja.Runtime, p *ScriptPlugin) {
 			if !ok {
 				return goja.Null()
 			}
-			var wrapper goja.Value
-			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-				if pl, ok := e.(*dfplayer.Player); ok {
-					wrapper = vm.ToValue(newPlayerWrapper(pl))
+			ch := make(chan goja.Value, 1)
+			go func() {
+				var wrapper goja.Value
+				handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+					if pl, ok := e.(*dfplayer.Player); ok {
+						wrapper = vm.ToValue(newPlayerWrapper(pl))
+					}
+				})
+				if wrapper == nil {
+					ch <- goja.Null()
+				} else {
+					ch <- wrapper
 				}
-			})
-			if wrapper == nil {
-				return goja.Null()
-			}
-			return wrapper
+			}()
+			return <-ch
 		},
 
 		// getPlayerByXUID(xuid) — busca un jugador por XUID. Retorna el playerWrapper o null.
@@ -920,16 +925,21 @@ func (l *Loader) registerServer(vm *goja.Runtime, p *ScriptPlugin) {
 			if !ok {
 				return goja.Null()
 			}
-			var wrapper goja.Value
-			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
-				if pl, ok := e.(*dfplayer.Player); ok {
-					wrapper = vm.ToValue(newPlayerWrapper(pl))
+			ch := make(chan goja.Value, 1)
+			go func() {
+				var wrapper goja.Value
+				handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+					if pl, ok := e.(*dfplayer.Player); ok {
+						wrapper = vm.ToValue(newPlayerWrapper(pl))
+					}
+				})
+				if wrapper == nil {
+					ch <- goja.Null()
+				} else {
+					ch <- wrapper
 				}
-			})
-			if wrapper == nil {
-				return goja.Null()
-			}
-			return wrapper
+			}()
+			return <-ch
 		},
 
 		// --- Mensajes ---

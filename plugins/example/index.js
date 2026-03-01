@@ -389,6 +389,58 @@ function onEnable() {
         console.log("[TEST] broadcast: " + msg);
     });
 
+    // --- Comandos de test Server API ---
+
+    commands.register("serverinfo", "Muestra info del servidor", function(player, args) {
+        var count = server.getPlayerCount();
+        var max = server.getMaxPlayers();
+        var name = server.getName();
+        player.sendMessage("§ePlugin: §f" + name);
+        player.sendMessage("§eJugadores: §f" + count + "§e/§f" + max);
+        player.sendTitle("§e" + name, "§f" + count + "/" + max + " jugadores");
+        console.log("[TEST] server.getName=" + name + " count=" + count + "/" + max);
+    });
+
+    commands.register("serverjugadores", "Lista jugadores via server.getPlayers()", function(player, args) {
+        var jugadores = server.getPlayers();
+        var count = server.getPlayerCount();
+        player.sendMessage("§eJugadores conectados (server API): §f" + count);
+        for (var i = 0; i < jugadores.length; i++) {
+            var p = jugadores[i];
+            player.sendMessage("§7- §f" + p.getName() + " §7x=" + Math.floor(p.getX()) + " y=" + Math.floor(p.getY()) + " z=" + Math.floor(p.getZ()));
+        }
+        console.log("[TEST] server.getPlayers: " + count + " jugadores");
+    });
+
+    commands.register("buscarjugador", "Busca un jugador por nombre via server.getPlayer()", function(player, args) {
+        if (args.length < 1) {
+            player.sendMessage("§cUso: /buscarjugador <nombre>");
+            return;
+        }
+        var nombre = args[0];
+        var target = server.getPlayer(nombre);
+        if (target === null) {
+            player.sendMessage("§cJugador §f'" + nombre + "§c' no encontrado.");
+            console.log("[TEST] server.getPlayer('" + nombre + "') = null");
+        } else {
+            player.sendMessage("§aJugador encontrado: §f" + target.getName());
+            player.sendMessage("§ePos: §f" + Math.floor(target.getX()) + "," + Math.floor(target.getY()) + "," + Math.floor(target.getZ()));
+            player.sendMessage("§eVida: §f" + target.getHealth().toFixed(1) + "/" + target.getMaxHealth().toFixed(1));
+            console.log("[TEST] server.getPlayer('" + nombre + "') = encontrado");
+        }
+    });
+
+    commands.register("serverbroadcast", "Broadcast con server API (chat + título)", function(player, args) {
+        if (args.length < 1) {
+            player.sendMessage("§cUso: /serverbroadcast <mensaje>");
+            return;
+        }
+        var msg = args.join(" ");
+        server.broadcast("§6§l[Server] §r§f" + msg);
+        server.broadcastTitle("§6Anuncio", "§f" + msg);
+        console.log("[TEST] server.broadcast + broadcastTitle: " + msg);
+    });
+
     // Log para confirmar que el plugin arrancó correctamente
     setTimeout(function() {
         console.log("El plugin lleva 30 segundos activo.");

@@ -1,0 +1,7 @@
+name: ExamplePlugin
+version: 1.0.0
+author: TuNombre
+description: Un ejemplo de plugin en JavaScript
+main: index.js
+
+api-version: 1.0.0

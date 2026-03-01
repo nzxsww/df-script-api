@@ -1,0 +1,4 @@
+chat-format: §7[§f{name}§7] §r{msg}
+prefix: §a[Servidor]§r
+protected-y: 10
+welcome-message: WELCOME TO THE SERVER

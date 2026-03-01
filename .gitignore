@@ -1,0 +1,28 @@
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Minecraft runtime data
+players/
+world/
+
+# Local docs output
+/docs/
+
+# VitePress
+/docs-site/node_modules/
+/docs-site/.vitepress/cache/
+/docs-site/.vitepress/dist/
+
+# Project-specific
+AGENTS.md
+config.toml
+
+# OS
+.DS_Store
+Thumbs.db

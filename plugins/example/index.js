@@ -298,6 +298,97 @@ function onEnable() {
         p.sendTitle("§aItem recogido", "§f" + event.getItemCount() + "x — PlayerItemPickup OK");
     });
 
+    // --- Comandos de test World API ---
+
+    commands.register("testbloque", "Coloca y lee un bloque en tu posición", function(player, args) {
+        var x = Math.floor(player.getX());
+        var y = Math.floor(player.getY()) - 1; // bloque bajo los pies
+        var z = Math.floor(player.getZ());
+        var bloque = world.getBlock(x, y, z);
+        console.log("[TEST] getBlock en " + x + "," + y + "," + z + " = " + bloque);
+        player.sendMessage("§eBloque bajo tus pies: §f" + bloque);
+
+        // Colocar un bloque de diamante 3 bloques adelante
+        world.setBlock(x + 3, y + 1, z, "minecraft:diamond_block");
+        player.sendMessage("§bBloque de diamante colocado en §f" + (x+3) + "," + (y+1) + "," + z);
+        console.log("[TEST] setBlock diamond_block en " + (x+3) + "," + (y+1) + "," + z);
+    });
+
+    commands.register("testaltura", "Muestra la altura del terreno en tu posición", function(player, args) {
+        var x = Math.floor(player.getX());
+        var z = Math.floor(player.getZ());
+        var y = world.getHighestBlock(x, z);
+        console.log("[TEST] getHighestBlock en " + x + "," + z + " = " + y);
+        player.sendMessage("§eBloque más alto en §f" + x + "," + z + "§e: §fY=" + y);
+        player.sendTitle("§eAltitud", "§fY=" + y + " en X=" + x + " Z=" + z);
+    });
+
+    commands.register("testrayo", "Invoca un rayo en tu posición", function(player, args) {
+        var x = player.getX();
+        var y = player.getY();
+        var z = player.getZ();
+        world.spawnLightning(x, y, z);
+        player.sendMessage("§e⚡ Rayo invocado!");
+        console.log("[TEST] spawnLightning en " + x + "," + y + "," + z);
+    });
+
+    commands.register("testtnt", "Coloca un TNT cerca de ti (4s mecha)", function(player, args) {
+        var x = player.getX() + 3;
+        var y = player.getY();
+        var z = player.getZ();
+        world.spawnTNT(x, y, z, 4);
+        player.sendMessage("§c💣 TNT activado a 3 bloques! (4 segundos)");
+        console.log("[TEST] spawnTNT en " + x + "," + y + "," + z);
+    });
+
+    commands.register("testtexto", "Crea un texto flotante en tu posición", function(player, args) {
+        var x = player.getX();
+        var y = player.getY() + 2;
+        var z = player.getZ();
+        var texto = args.length > 0 ? args.join(" ") : "§a§lTexto flotante!";
+        world.spawnText(x, y, z, texto);
+        player.sendMessage("§aTexto flotante creado!");
+        console.log("[TEST] spawnText '" + texto + "' en " + x + "," + y + "," + z);
+    });
+
+    commands.register("testxp", "Genera orbes de XP en tu posición", function(player, args) {
+        var cantidad = args.length > 0 ? parseInt(args[0]) : 100;
+        if (isNaN(cantidad) || cantidad < 1) cantidad = 100;
+        world.spawnExperienceOrb(player.getX(), player.getY(), player.getZ(), cantidad);
+        player.sendMessage("§b✨ " + cantidad + " XP generados!");
+        console.log("[TEST] spawnExperienceOrb " + cantidad + " en pos del jugador");
+    });
+
+    commands.register("testparticula", "Genera partículas en tu posición", function(player, args) {
+        var tipo = args.length > 0 ? args[0] : "flame";
+        var x = player.getX();
+        var y = player.getY() + 1;
+        var z = player.getZ();
+        world.spawnParticle(x, y, z, tipo);
+        player.sendMessage("§dPartícula §f'" + tipo + "' §dgenerada!");
+        console.log("[TEST] spawnParticle '" + tipo + "' en " + x + "," + y + "," + z);
+    });
+
+    commands.register("testjugadores", "Lista todos los jugadores conectados", function(player, args) {
+        var jugadores = world.getPlayers();
+        var cantidad = world.getPlayerCount();
+        player.sendMessage("§eJugadores conectados: §f" + cantidad);
+        for (var i = 0; i < jugadores.length; i++) {
+            player.sendMessage("§7- §f" + jugadores[i].getName() + " §7(" + Math.floor(jugadores[i].getX()) + "," + Math.floor(jugadores[i].getY()) + "," + Math.floor(jugadores[i].getZ()) + ")");
+        }
+        console.log("[TEST] getPlayers: " + cantidad + " jugadores");
+    });
+
+    commands.register("broadcast", "Envía un mensaje a todos los jugadores", function(player, args) {
+        if (args.length < 1) {
+            player.sendMessage("§cUso: /broadcast <mensaje>");
+            return;
+        }
+        var msg = "§6[Broadcast] §f" + args.join(" ");
+        world.broadcast(msg);
+        console.log("[TEST] broadcast: " + msg);
+    });
+
     // Log para confirmar que el plugin arrancó correctamente
     setTimeout(function() {
         console.log("El plugin lleva 30 segundos activo.");

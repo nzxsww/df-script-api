@@ -620,6 +620,7 @@ func (l *Loader) loadScript(p *ScriptPlugin, scriptFile string) error {
 	l.registerCommands(vm, p)
 	l.registerConfig(vm, p)
 	l.registerWorld(vm, p)
+	l.registerServer(vm, p)
 
 	// Leer y ejecutar el script
 	scriptContent, err := os.ReadFile(scriptFile)
@@ -850,6 +851,132 @@ func (l *Loader) registerCommands(vm *goja.Runtime, p *ScriptPlugin) {
 			jsCallback := command.MakeJSCallback(vm, callback, p.name)
 			command.Register(name, description, aliases, jsCallback)
 			return goja.Undefined()
+		},
+	})
+}
+
+// registerServer expone el objeto `server` con métodos globales del servidor al estilo Bukkit.
+func (l *Loader) registerServer(vm *goja.Runtime, p *ScriptPlugin) {
+	vm.Set("server", map[string]interface{}{
+		// --- Jugadores ---
+
+		// getPlayers() — retorna todos los jugadores conectados en todos los mundos.
+		"getPlayers": func() []interface{} {
+			if p.srv == nil {
+				return []interface{}{}
+			}
+			var players []interface{}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				for pl := range p.srv.Players(tx) {
+					players = append(players, newPlayerWrapper(pl))
+				}
+			})
+			return players
+		},
+
+		// getPlayerCount() — retorna la cantidad de jugadores conectados.
+		"getPlayerCount": func() int {
+			if p.srv == nil {
+				return 0
+			}
+			return p.srv.PlayerCount()
+		},
+
+		// getMaxPlayers() — retorna el límite máximo de jugadores del servidor.
+		"getMaxPlayers": func() int {
+			if p.srv == nil {
+				return 0
+			}
+			return p.srv.MaxPlayerCount()
+		},
+
+		// getPlayer(nombre) — busca un jugador por nombre. Retorna el playerWrapper o null si no está conectado.
+		"getPlayer": func(name string) goja.Value {
+			if p.srv == nil {
+				return goja.Null()
+			}
+			handle, ok := p.srv.PlayerByName(name)
+			if !ok {
+				return goja.Null()
+			}
+			var wrapper goja.Value
+			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+				if pl, ok := e.(*dfplayer.Player); ok {
+					wrapper = vm.ToValue(newPlayerWrapper(pl))
+				}
+			})
+			if wrapper == nil {
+				return goja.Null()
+			}
+			return wrapper
+		},
+
+		// getPlayerByXUID(xuid) — busca un jugador por XUID. Retorna el playerWrapper o null.
+		"getPlayerByXUID": func(xuid string) goja.Value {
+			if p.srv == nil {
+				return goja.Null()
+			}
+			handle, ok := p.srv.PlayerByXUID(xuid)
+			if !ok {
+				return goja.Null()
+			}
+			var wrapper goja.Value
+			handle.ExecWorld(func(tx *world.Tx, e world.Entity) {
+				if pl, ok := e.(*dfplayer.Player); ok {
+					wrapper = vm.ToValue(newPlayerWrapper(pl))
+				}
+			})
+			if wrapper == nil {
+				return goja.Null()
+			}
+			return wrapper
+		},
+
+		// --- Mensajes ---
+
+		// broadcast(msg) — envía un mensaje de chat a todos los jugadores conectados.
+		"broadcast": func(msg string) {
+			if p.srv == nil {
+				return
+			}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				for pl := range p.srv.Players(tx) {
+					pl.Message(msg)
+				}
+			})
+		},
+
+		// broadcastTitle(texto, subtitulo) — envía un título a todos los jugadores conectados.
+		"broadcastTitle": func(text, subtitle string) {
+			if p.srv == nil {
+				return
+			}
+			t := title.New(text).WithSubtitle(subtitle)
+			p.srv.World().Exec(func(tx *world.Tx) {
+				for pl := range p.srv.Players(tx) {
+					pl.SendTitle(t)
+				}
+			})
+		},
+
+		// --- Info del servidor ---
+
+		// getName() — retorna el nombre del plugin/servidor (nombre del plugin actual).
+		"getName": func() string {
+			return p.name
+		},
+
+		// shutdown() — cierra el servidor de forma segura.
+		"shutdown": func() {
+			if p.srv == nil {
+				return
+			}
+			fmt.Printf("[%s] Solicitando cierre del servidor...\n", p.name)
+			go func() {
+				if err := p.srv.Close(); err != nil {
+					fmt.Printf("[%s] Error al cerrar el servidor: %v\n", p.name, err)
+				}
+			}()
 		},
 	})
 }

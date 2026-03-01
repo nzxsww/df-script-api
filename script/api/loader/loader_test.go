@@ -774,6 +774,241 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	plugins[0].OnEnable()
 }
 
+// --- Tests de Server API ---
+
+func TestLoader_Server_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ServerPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    if (typeof server === "undefined") throw new Error("server no está definido");
+    if (typeof server.getPlayers !== "function") throw new Error("server.getPlayers no es función");
+    if (typeof server.getPlayerCount !== "function") throw new Error("server.getPlayerCount no es función");
+    if (typeof server.getMaxPlayers !== "function") throw new Error("server.getMaxPlayers no es función");
+    if (typeof server.getPlayer !== "function") throw new Error("server.getPlayer no es función");
+    if (typeof server.getPlayerByXUID !== "function") throw new Error("server.getPlayerByXUID no es función");
+    if (typeof server.broadcast !== "function") throw new Error("server.broadcast no es función");
+    if (typeof server.broadcastTitle !== "function") throw new Error("server.broadcastTitle no es función");
+    if (typeof server.getName !== "function") throw new Error("server.getName no es función");
+    if (typeof server.shutdown !== "function") throw new Error("server.shutdown no es función");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Server_GetPlayers_NoServer_ReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ServerPlayersPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var players = server.getPlayers();
+    if (!Array.isArray(players)) throw new Error("getPlayers debe retornar array");
+    if (players.length !== 0) throw new Error("sin servidor debe retornar array vacío");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Server_GetPlayerCount_NoServer_ReturnsZero(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ServerCountPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var count = server.getPlayerCount();
+    if (typeof count !== "number") throw new Error("getPlayerCount debe retornar number");
+    if (count !== 0) throw new Error("sin servidor debe retornar 0, got: " + count);
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Server_GetMaxPlayers_NoServer_ReturnsZero(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ServerMaxPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var max = server.getMaxPlayers();
+    if (typeof max !== "number") throw new Error("getMaxPlayers debe retornar number");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Server_GetPlayer_NoServer_ReturnsNull(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ServerGetPlayerPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var p = server.getPlayer("Notch");
+    if (p !== null) throw new Error("sin servidor getPlayer debe retornar null");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Server_GetPlayerByXUID_NoServer_ReturnsNull(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ServerGetXUIDPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var p = server.getPlayerByXUID("123456789");
+    if (p !== null) throw new Error("sin servidor getPlayerByXUID debe retornar null");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Server_Broadcast_NoServer_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ServerBroadcastPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    server.broadcast("§aHola a todos!");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("server.broadcast sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Server_BroadcastTitle_NoServer_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ServerBroadcastTitlePlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    server.broadcastTitle("§aEvento!", "§7Comenzando ahora");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("server.broadcastTitle sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Server_GetName_ReturnsPluginName(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: MiPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var name = server.getName();
+    if (typeof name !== "string") throw new Error("getName debe retornar string");
+    if (name !== "MiPlugin") throw new Error("getName debe retornar 'MiPlugin', got: " + name);
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Server_Shutdown_NoServer_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ServerShutdownPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    server.shutdown(); // sin servidor real, debe no hacer nada
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("server.shutdown sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
 // --- Tests de World API ---
 
 func TestLoader_World_IsAvailable(t *testing.T) {

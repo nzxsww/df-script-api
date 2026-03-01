@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
+	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/cmd"
+	"github.com/df-mc/dragonfly/server/entity"
 	"github.com/df-mc/dragonfly/server/entity/effect"
 	dfitem "github.com/df-mc/dragonfly/server/item"
 	dfplayer "github.com/df-mc/dragonfly/server/player"
@@ -406,13 +408,240 @@ func MakeJSCallback(vm *goja.Runtime, callback goja.Callable, pluginName string,
 			jsArgs.Set(fmt.Sprintf("%d", i), vm.ToValue(arg))
 		}
 
-		// Exponer server object con acceso al tx activo (sin deadlock)
-		serverObj := buildServerMap(vm, srv, tx)
-		vm.Set("server", serverObj)
+		// Exponer server y world con el tx activo (sin deadlock)
+		vm.Set("server", buildServerMap(vm, srv, tx))
+		vm.Set("world", buildWorldMap(vm, srv, tx))
 
 		if _, err := callback(goja.Undefined(), jsPlayer, jsArgs); err != nil {
 			fmt.Printf("[%s] Error en handler de comando: %v\n", pluginName, err)
 		}
+	}
+}
+
+// buildEntityMap construye un mapa JS con métodos para interactuar con una entidad.
+// Debe mantenerse sincronizado con newEntityWrapper en loader/loader.go.
+func buildEntityMap(e world.Entity, tx *world.Tx) map[string]interface{} {
+	m := map[string]interface{}{
+		"getUUID": func() string { return e.H().UUID().String() },
+		"getType": func() string { return e.H().Type().EncodeEntity() },
+		"getX":    func() float64 { return e.Position().X() },
+		"getY":    func() float64 { return e.Position().Y() },
+		"getZ":    func() float64 { return e.Position().Z() },
+		"remove":  func() { tx.RemoveEntity(e) },
+		"teleport": func(x, y, z float64) {
+			if mover, ok := e.(interface{ Teleport(mgl64.Vec3) }); ok {
+				mover.Teleport(mgl64.Vec3{x, y, z})
+			}
+		},
+		"setVelocity": func(x, y, z float64) {
+			if mover, ok := e.(interface{ SetVelocity(mgl64.Vec3) }); ok {
+				mover.SetVelocity(mgl64.Vec3{x, y, z})
+			}
+		},
+	}
+	if living, ok := e.(entity.Living); ok {
+		m["getHealth"] = func() float64 { return living.Health() }
+		m["getMaxHealth"] = func() float64 { return living.MaxHealth() }
+		m["setMaxHealth"] = func(h float64) { living.SetMaxHealth(h) }
+		m["isDead"] = func() bool { return living.Dead() }
+		m["hurt"] = func(damage float64) { living.Hurt(damage, entity.AttackDamageSource{}) }
+		m["heal"] = func(health float64) { living.Heal(health, entity.FoodHealingSource{}) }
+		m["knockBack"] = func(x, y, z, force, height float64) {
+			living.KnockBack(mgl64.Vec3{x, y, z}, force, height)
+		}
+		m["addEffect"] = func(name string, level int, seconds int) {
+			t, ok := effectTypeByName(name)
+			if !ok {
+				return
+			}
+			living.AddEffect(effect.New(t, level, time.Duration(seconds)*time.Second))
+		}
+		m["removeEffect"] = func(name string) {
+			t, ok := effectTypeByName(name)
+			if !ok {
+				return
+			}
+			living.RemoveEffect(t)
+		}
+		m["clearEffects"] = func() {
+			for _, eff := range living.Effects() {
+				living.RemoveEffect(eff.Type())
+			}
+		}
+		m["getSpeed"] = func() float64 { return living.Speed() }
+	}
+	if pl, ok := e.(*dfplayer.Player); ok {
+		m["getName"] = func() string { return pl.Name() }
+		m["sendMessage"] = func(msg string) { pl.Message(msg) }
+		m["sendTitle"] = func(text, subtitle string) {
+			t := title.New(text).WithSubtitle(subtitle)
+			pl.SendTitle(t)
+		}
+		m["disconnect"] = func(msg string) { pl.Disconnect(msg) }
+	}
+	return m
+}
+
+// buildWorldMap construye el objeto world usando el tx activo del comando.
+// Esto evita el deadlock al usar world.getEntities() desde comandos.
+func buildWorldMap(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map[string]interface{} {
+	return map[string]interface{}{
+		// --- Bloques ---
+		"setBlock": func(x, y, z int, blockName string) {
+			if srv == nil || tx == nil {
+				return
+			}
+			b, ok := world.BlockByName(blockName, nil)
+			if !ok {
+				fmt.Printf("[Commands] world.setBlock: bloque desconocido '%s'\n", blockName)
+				return
+			}
+			tx.SetBlock(cube.Pos{x, y, z}, b, nil)
+		},
+		"getBlock": func(x, y, z int) string {
+			if srv == nil || tx == nil {
+				return ""
+			}
+			b := tx.Block(cube.Pos{x, y, z})
+			name, _ := b.EncodeBlock()
+			return name
+		},
+		"getHighestBlock": func(x, z int) int {
+			if srv == nil || tx == nil {
+				return 0
+			}
+			return tx.HighestBlock(x, z)
+		},
+		// --- Entidades ---
+		"getEntities": func() []interface{} {
+			if srv == nil || tx == nil {
+				return []interface{}{}
+			}
+			var entities []interface{}
+			for e := range tx.Entities() {
+				entities = append(entities, buildEntityMap(e, tx))
+			}
+			return entities
+		},
+		"getEntitiesInRadius": func(x, y, z, radius float64) []interface{} {
+			if srv == nil || tx == nil {
+				return []interface{}{}
+			}
+			center := mgl64.Vec3{x, y, z}
+			box := cube.Box(x-radius, y-radius, z-radius, x+radius, y+radius, z+radius)
+			var entities []interface{}
+			for e := range tx.EntitiesWithin(box) {
+				if e.Position().Sub(center).Len() <= radius {
+					entities = append(entities, buildEntityMap(e, tx))
+				}
+			}
+			return entities
+		},
+		"removeEntityByUUID": func(uuidStr string) bool {
+			if srv == nil || tx == nil {
+				return false
+			}
+			for e := range tx.Entities() {
+				if e.H().UUID().String() == uuidStr {
+					tx.RemoveEntity(e)
+					return true
+				}
+			}
+			return false
+		},
+		// --- Partículas ---
+		"spawnParticle": func(x, y, z float64, particleName string) {
+			// Las partículas no requieren tx especial, se delegan al loader
+		},
+		// --- Spawn de entidades ---
+		"spawnEntity": func(entityType string, x, y, z float64, opts goja.Value) {
+			if srv == nil || tx == nil {
+				return
+			}
+			pos := mgl64.Vec3{x, y, z}
+			spawnOpts := world.EntitySpawnOpts{Position: pos}
+
+			var optsMap map[string]goja.Value
+			if opts != nil && !goja.IsUndefined(opts) && !goja.IsNull(opts) {
+				if obj, ok := opts.(*goja.Object); ok {
+					optsMap = make(map[string]goja.Value)
+					for _, key := range obj.Keys() {
+						optsMap[key] = obj.Get(key)
+					}
+				}
+			}
+			getFloat := func(key string, def float64) float64 {
+				if v, ok := optsMap[key]; ok {
+					return v.ToFloat()
+				}
+				return def
+			}
+			getString := func(key string, def string) string {
+				if v, ok := optsMap[key]; ok {
+					return v.String()
+				}
+				return def
+			}
+			getInt := func(key string, def int) int {
+				if v, ok := optsMap[key]; ok {
+					return int(v.ToInteger())
+				}
+				return def
+			}
+
+			switch entityType {
+			case "lightning":
+				tx.AddEntity(entity.NewLightning(spawnOpts))
+			case "tnt":
+				fuse := time.Duration(getFloat("fuse", 4) * float64(time.Second))
+				tx.AddEntity(entity.NewTNT(spawnOpts, fuse))
+			case "text":
+				text := getString("text", "")
+				tx.AddEntity(entity.NewText(text, pos))
+			case "experience_orb":
+				amount := getInt("amount", 1)
+				for _, orb := range entity.NewExperienceOrbs(pos, amount) {
+					tx.AddEntity(orb)
+				}
+			case "item":
+				itemName := getString("item", "minecraft:stone")
+				count := getInt("count", 1)
+				it, ok := world.ItemByName(itemName, 0)
+				if !ok {
+					fmt.Printf("[Commands] world.spawnEntity: item desconocido '%s'\n", itemName)
+					return
+				}
+				stack := dfitem.NewStack(it, count)
+				tx.AddEntity(entity.NewItem(spawnOpts, stack))
+			default:
+				fmt.Printf("[Commands] world.spawnEntity: tipo desconocido '%s'\n", entityType)
+			}
+		},
+		// --- Jugadores (por retrocompatibilidad) ---
+		"getPlayers": func() []interface{} {
+			if srv == nil || tx == nil {
+				return []interface{}{}
+			}
+			var players []interface{}
+			for pl := range srv.Players(tx) {
+				players = append(players, buildPlayerMap(pl))
+			}
+			return players
+		},
+		"getPlayerCount": func() int {
+			if srv == nil {
+				return 0
+			}
+			return srv.PlayerCount()
+		},
+		"broadcast": func(msg string) {
+			if srv == nil || tx == nil {
+				return
+			}
+			for pl := range srv.Players(tx) {
+				pl.Message(msg)
+			}
+		},
 	}
 }
 

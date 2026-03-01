@@ -389,6 +389,76 @@ function onEnable() {
         console.log("[TEST] broadcast: " + msg);
     });
 
+    // --- Comandos de test Entity API ---
+
+    commands.register("entidades", "Lista todas las entidades del mundo", function(player, args) {
+        var entities = world.getEntities();
+        player.sendMessage("§eEntidades en el mundo: §f" + entities.length);
+        for (var i = 0; i < entities.length; i++) {
+            var e = entities[i];
+            var info = e.getType() + " §7(" + Math.floor(e.getX()) + "," + Math.floor(e.getY()) + "," + Math.floor(e.getZ()) + ")";
+            if (typeof e.getHealth === "function") {
+                info += " §cvida=" + e.getHealth().toFixed(1);
+            }
+            if (typeof e.getName === "function") {
+                info += " §a[" + e.getName() + "]";
+            }
+            player.sendMessage("§7- §f" + info);
+        }
+        console.log("[TEST] world.getEntities: " + entities.length + " entidades");
+    });
+
+    commands.register("entidadescercanas", "Lista entidades en radio de 10 bloques", function(player, args) {
+        var radio = args.length > 0 ? parseFloat(args[0]) : 10;
+        if (isNaN(radio) || radio < 1) radio = 10;
+        var entities = world.getEntitiesInRadius(player.getX(), player.getY(), player.getZ(), radio);
+        player.sendMessage("§eEntidades en radio §f" + radio + "§e bloques: §f" + entities.length);
+        for (var i = 0; i < entities.length; i++) {
+            var e = entities[i];
+            var info = e.getType();
+            if (typeof e.getHealth === "function") info += " §cvida=" + e.getHealth().toFixed(1);
+            if (typeof e.getName === "function") info += " §a[" + e.getName() + "]";
+            player.sendMessage("§7- §f" + info);
+        }
+        player.sendTitle("§eEntidades cercanas", "§f" + entities.length + " en radio " + radio);
+        console.log("[TEST] world.getEntitiesInRadius radio=" + radio + ": " + entities.length + " entidades");
+    });
+
+    commands.register("removeritem", "Remueve todos los items del suelo cercanos (radio 20)", function(player, args) {
+        var entities = world.getEntitiesInRadius(player.getX(), player.getY(), player.getZ(), 20);
+        var count = 0;
+        for (var i = 0; i < entities.length; i++) {
+            if (entities[i].getType() === "minecraft:item") {
+                entities[i].remove();
+                count++;
+            }
+        }
+        player.sendMessage("§a" + count + " items removidos del suelo.");
+        player.sendTitle("§aLimpieza", "§f" + count + " items removidos");
+        console.log("[TEST] entity.remove() items: " + count + " removidos");
+    });
+
+    commands.register("removertnt", "Remueve todos los TNT del mundo", function(player, args) {
+        var entities = world.getEntities();
+        var count = 0;
+        for (var i = 0; i < entities.length; i++) {
+            if (entities[i].getType() === "minecraft:tnt") {
+                entities[i].remove();
+                count++;
+            }
+        }
+        player.sendMessage("§a" + count + " TNT removidos.");
+        console.log("[TEST] entity.remove() tnt: " + count + " removidos");
+    });
+
+    commands.register("spawnitem", "Spawnea un item en tu posición", function(player, args) {
+        var itemName = args.length > 0 ? args[0] : "minecraft:diamond";
+        var count = args.length > 1 ? parseInt(args[1]) : 1;
+        world.spawnEntity("item", player.getX(), player.getY() + 1, player.getZ(), { item: itemName, count: count });
+        player.sendMessage("§aItem spawneado: §f" + itemName + " x" + count);
+        console.log("[TEST] spawnEntity item: " + itemName + " x" + count);
+    });
+
     // --- Comandos de test Server API ---
 
     commands.register("serverinfo", "Muestra info del servidor", function(player, args) {

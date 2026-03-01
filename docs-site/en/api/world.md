@@ -2,19 +2,18 @@
 
 The `world` object is available globally in every plugin. It allows interacting with the Minecraft world: placing blocks, spawning entities, managing particles, and working with online players.
 
-## ⚠️ When to use world (important)
+::: warning Important — world transactions
+The server uses a **transaction system** to access the world, similar to a database. Each command and each event have their own active transaction. If you try to open a second transaction from inside a first one, the server freezes (deadlock).
 
-The server uses a **transaction system** to access the world — similar to a database. Each command and each event receive their own active transaction. If you try to open a second transaction from inside a first one, the server freezes (deadlock).
-
-For this reason, `world` methods that **read or modify world state** (`getEntities`, `getEntitiesInRadius`, `setBlock`, `getBlock`, etc.) **only work correctly from inside an event or a command**:
+Methods that **read world state** (`getEntities`, `getEntitiesInRadius`, `getBlock`, etc.) **only work from inside an event or a command**:
 
 ```js
-// ✅ Correct — inside an event (has active transaction)
+// ✅ Correct — inside an event
 events.on("PlayerJoin", function(event) {
     var entities = world.getEntities(); // OK
 });
 
-// ✅ Correct — inside a command (has active transaction)
+// ✅ Correct — inside a command
 commands.register("entities", "List entities", function(player, args) {
     var entities = world.getEntities(); // OK
 });
@@ -25,7 +24,8 @@ function onEnable() {
 }
 ```
 
-Methods that **do not read world state** such as `spawnEntity`, `setBlock`, `spawnParticle` do work from `onEnable()` since they open their own transaction internally.
+Methods that **write** like `spawnEntity` or `setBlock` do work from `onEnable()` since they open their own transaction internally.
+:::
 
 ## Blocks
 

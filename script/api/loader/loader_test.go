@@ -774,6 +774,162 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	plugins[0].OnEnable()
 }
 
+// --- Tests de world/server desde comandos (BuildWorldMapFromTx) ---
+
+func TestLoader_Command_WorldGetEntities_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: CmdWorldPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    commands.register("testworld", "test", function(player, args) {
+        // Desde un comando, world debe tener getEntities
+        if (typeof world.getEntities !== "function") throw new Error("world.getEntities no es función desde comando");
+        if (typeof world.getEntitiesInRadius !== "function") throw new Error("world.getEntitiesInRadius no es función desde comando");
+        if (typeof world.removeEntityByUUID !== "function") throw new Error("world.removeEntityByUUID no es función desde comando");
+        if (typeof world.setBlock !== "function") throw new Error("world.setBlock no es función desde comando");
+        if (typeof world.getBlock !== "function") throw new Error("world.getBlock no es función desde comando");
+        if (typeof world.getHighestBlock !== "function") throw new Error("world.getHighestBlock no es función desde comando");
+        if (typeof world.spawnEntity !== "function") throw new Error("world.spawnEntity no es función desde comando");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Command_WorldGetEntities_NoTx_ReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: CmdWorldEmptyPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    commands.register("testentities", "test", function(player, args) {
+        var entities = world.getEntities();
+        if (!Array.isArray(entities)) throw new Error("getEntities debe retornar array desde comando");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Command_WorldGetEntitiesInRadius_NoTx_ReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: CmdWorldRadiusPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    commands.register("testradius", "test", function(player, args) {
+        var entities = world.getEntitiesInRadius(0, 64, 0, 10);
+        if (!Array.isArray(entities)) throw new Error("getEntitiesInRadius debe retornar array desde comando");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Command_WorldRemoveEntityByUUID_NoTx_ReturnsFalse(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: CmdWorldRemovePlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    commands.register("testremove", "test", function(player, args) {
+        var removed = world.removeEntityByUUID("00000000-0000-0000-0000-000000000000");
+        if (typeof removed !== "boolean") throw new Error("removeEntityByUUID debe retornar boolean desde comando");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Command_ServerGetPlayers_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: CmdServerPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    commands.register("testserver", "test", function(player, args) {
+        if (typeof server.getPlayers !== "function") throw new Error("server.getPlayers no es función desde comando");
+        if (typeof server.getPlayer !== "function") throw new Error("server.getPlayer no es función desde comando");
+        if (typeof server.broadcast !== "function") throw new Error("server.broadcast no es función desde comando");
+        if (typeof server.broadcastTitle !== "function") throw new Error("server.broadcastTitle no es función desde comando");
+        if (typeof server.getPlayerCount !== "function") throw new Error("server.getPlayerCount no es función desde comando");
+        if (typeof server.getMaxPlayers !== "function") throw new Error("server.getMaxPlayers no es función desde comando");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Command_WorldSpawnEntity_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: CmdSpawnPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    commands.register("testspawn", "test", function(player, args) {
+        if (typeof world.spawnEntity !== "function") throw new Error("world.spawnEntity no es función desde comando");
+        // sin tx activo, no debe panic
+        world.spawnEntity("lightning", 0, 64, 0);
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.spawnEntity desde comando causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
 // --- Tests de Server API ---
 
 func TestLoader_Server_IsAvailable(t *testing.T) {

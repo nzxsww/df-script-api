@@ -25,9 +25,6 @@ Download prebuilt binaries from GitHub Releases:
 - **Dragonfly** — https://github.com/df-mc/dragonfly
 - **Goja (JS engine)** — https://github.com/dop251/goja
 - **gophertunnel (Bedrock protocol)** — https://github.com/sandertv/gophertunnel
-- **YAML** — https://github.com/go-yaml/yaml
-- **TOML** — https://github.com/pelletier/go-toml
-- **MathGL (vectors)** — https://github.com/go-gl/mathgl
 
 ## Note on AI
 

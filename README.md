@@ -1,33 +1,34 @@
 # Dragonfly Script API
 
-Motor de scripting para plugins **JavaScript** sobre Dragonfly (Minecraft Bedrock). Permite crear plugins estilo Bukkit/Spigot con eventos, comandos, configuración YAML y una API completa del jugador.
+JavaScript plugin scripting engine for **Dragonfly** (Minecraft Bedrock). Build Bukkit/Spigot‑style plugins with events, commands, YAML config, and a full player API.
 
-## ✅ Lo más importante
+## 📘 Developer Documentation
 
-- **20 eventos disponibles** (PlayerJoin, PlayerChat, PlayerDeath, BlockBreak, etc.)
-- **API del jugador con 50+ métodos** (inventario, sonidos, gamemode, teleport, etc.)
-- **Comandos desde JS** con autocompletado
-- **Config YAML por plugin**
-- **Tests:** 133 tests, 0 fallos
-
-## 📘 Documentación para desarrolladores
-
-La documentación completa para crear plugins está aquí:
+Full plugin developer docs:
 
 ➡️ **https://nzxsww.github.io/df-script-api/**
 
 ## ⬇️ Releases
 
-Descargá el servidor precompilado desde GitHub Releases:
+Download prebuilt binaries from GitHub Releases:
 
 ➡️ https://github.com/nzxsww/df-script-api/releases
 
-## ⚠️ Compatibilidad
+## ⚠️ Compatibility
 
-- Minecraft Bedrock **1.21.130 – 1.21.132** (protocolo 898)
+- Minecraft Bedrock **1.21.130 – 1.21.132** (protocol 898)
 - Dragonfly v0.10.10
 - gophertunnel v1.52.2
 
-## Nota sobre IA
+## 🔧 Core Libraries
 
-Este proyecto incluye una parte de código generado con inteligencia artificial, luego revisado y ajustado manualmente.
+- **Dragonfly** — https://github.com/df-mc/dragonfly
+- **Goja (JS engine)** — https://github.com/dop251/goja
+- **gophertunnel (Bedrock protocol)** — https://github.com/sandertv/gophertunnel
+- **YAML** — https://github.com/go-yaml/yaml
+- **TOML** — https://github.com/pelletier/go-toml
+- **MathGL (vectors)** — https://github.com/go-gl/mathgl
+
+## Note on AI
+
+This project includes some code generated with AI, then reviewed and adjusted manually.

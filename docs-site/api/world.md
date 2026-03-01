@@ -2,6 +2,31 @@
 
 El objeto `world` está disponible globalmente en cada plugin. Permite interactuar con el mundo de Minecraft: colocar bloques, invocar entidades, generar partículas y trabajar con los jugadores conectados.
 
+## ⚠️ Cuándo usar world (importante)
+
+El servidor usa un sistema de **transacciones** para acceder al mundo — similar a una base de datos. Cada comando y cada evento reciben su propia transacción activa. Si intentás abrir una segunda transacción desde dentro de una primera, el servidor se freezea (deadlock).
+
+Por eso, los métodos de `world` que **leen o modifican el estado del mundo** (`getEntities`, `getEntitiesInRadius`, `setBlock`, `getBlock`, etc.) **solo funcionan correctamente desde dentro de un evento o un comando**:
+
+```js
+// ✅ Correcto — dentro de un evento (tiene transacción activa)
+events.on("PlayerJoin", function(event) {
+    var entities = world.getEntities(); // OK
+});
+
+// ✅ Correcto — dentro de un comando (tiene transacción activa)
+commands.register("entidades", "Lista entidades", function(player, args) {
+    var entities = world.getEntities(); // OK
+});
+
+// ❌ Incorrecto — en onEnable() no hay transacción activa
+function onEnable() {
+    var entities = world.getEntities(); // Deadlock / retorna vacío
+}
+```
+
+Los métodos que **no leen el estado del mundo** como `spawnEntity`, `setBlock`, `spawnParticle` sí funcionan desde `onEnable()` ya que abren su propia transacción internamente.
+
 ## Bloques
 
 | Método | Retorna | Descripción |

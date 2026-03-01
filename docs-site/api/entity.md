@@ -99,7 +99,7 @@ for (var i = 0; i < entities.length; i++) {
 | `"minecraft:lightning_bolt"` | Rayo | No |
 | `"minecraft:falling_block"` | Bloque cayendo | No |
 | `"minecraft:fireworks_rocket"` | Fuego artificial | No |
-| `"dragonfly:text"` | Texto flotante (creado con `world.spawnText`) | No |
+| `"dragonfly:text"` | Texto flotante (creado con `world.spawnEntity("text", ...)`) | No |
 
 ## Verificar el tipo antes de usar métodos opcionales
 

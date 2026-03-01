@@ -46,29 +46,6 @@ world.spawnParticle(100, 65, 100, "explosion");
 
 ## Entidades
 
-| Método | Descripción |
-|---|---|
-| `spawnLightning(x, y, z)` | Invocar un rayo en la posición dada |
-| `spawnTNT(x, y, z, fuse)` | Invocar un TNT activado. `fuse` es segundos hasta explotar |
-| `spawnText(x, y, z, texto)` | Crear un texto flotante en la posición dada |
-| `spawnExperienceOrb(x, y, z, cantidad)` | Generar un orbe de experiencia |
-
-```js
-// Invocar un rayo
-world.spawnLightning(100, 64, 100);
-
-// TNT con mecha de 4 segundos
-world.spawnTNT(100, 65, 100, 4);
-
-// Texto flotante (soporta códigos de color)
-world.spawnText(0, 70, 0, "§a§l¡Bienvenido al servidor!");
-
-// Orbe de experiencia
-world.spawnExperienceOrb(100, 64, 100, 50);
-```
-
-## Entidades
-
 ### Invocar entidades
 
 | Método | Descripción |
@@ -151,7 +128,7 @@ for (var i = 0; i < entities.length; i++) {
 | `"minecraft:lightning_bolt"` | Rayo |
 | `"minecraft:falling_block"` | Bloque cayendo |
 | `"minecraft:fireworks_rocket"` | Fuego artificial |
-| `"dragonfly:text"` | Texto flotante (creado con `spawnText`) |
+| `"dragonfly:text"` | Texto flotante (creado con `world.spawnEntity("text", ...)`) |
 
 ## Jugadores
 

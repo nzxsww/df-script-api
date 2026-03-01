@@ -48,23 +48,25 @@ world.spawnParticle(100, 65, 100, "explosion");
 
 | Method | Description |
 |---|---|
-| `spawnLightning(x, y, z)` | Strike lightning at the given position |
-| `spawnTNT(x, y, z, fuse)` | Spawn a primed TNT. `fuse` is seconds until explosion |
-| `spawnText(x, y, z, text)` | Spawn a floating text entity |
-| `spawnExperienceOrb(x, y, z, amount)` | Spawn an experience orb with the given XP amount |
+| `spawnEntity(type, x, y, z)` | Spawn an entity at the given position |
+| `spawnEntity(type, x, y, z, options)` | Spawn an entity with additional options |
+
+**Available types and options:**
+
+| Type | Options | Description |
+|---|---|---|
+| `"lightning"` | — | Lightning bolt |
+| `"tnt"` | `{ fuse: 4 }` | Primed TNT. `fuse` = seconds until explosion (default: 4) |
+| `"text"` | `{ text: "§aHello" }` | Floating text |
+| `"experience_orb"` | `{ amount: 50 }` | Experience orb with XP amount (default: 1) |
+| `"item"` | `{ item: "minecraft:diamond", count: 1 }` | Item on the ground |
 
 ```js
-// Strike lightning at coordinates
-world.spawnLightning(100, 64, 100);
-
-// Spawn TNT with 4 second fuse
-world.spawnTNT(100, 65, 100, 4);
-
-// Floating text (supports color codes)
-world.spawnText(0, 70, 0, "§a§lWelcome to the server!");
-
-// Drop experience orbs
-world.spawnExperienceOrb(100, 64, 100, 50);
+world.spawnEntity("lightning", 100, 64, 100);
+world.spawnEntity("tnt", 100, 65, 100, { fuse: 4 });
+world.spawnEntity("text", 0, 70, 0, { text: "§a§lWelcome to the server!" });
+world.spawnEntity("experience_orb", 100, 64, 100, { amount: 50 });
+world.spawnEntity("item", 100, 64, 100, { item: "minecraft:diamond", count: 5 });
 ```
 
 ## Entities
@@ -150,7 +152,7 @@ for (var i = 0; i < entities.length; i++) {
 | `"minecraft:lightning_bolt"` | Lightning |
 | `"minecraft:falling_block"` | Falling block |
 | `"minecraft:fireworks_rocket"` | Firework |
-| `"dragonfly:text"` | Floating text (created with `spawnText`) |
+| `"dragonfly:text"` | Floating text (created with `world.spawnEntity("text", ...)`) |
 
 ## Players
 

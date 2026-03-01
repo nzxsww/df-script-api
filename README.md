@@ -35,3 +35,7 @@ Download prebuilt binaries from GitHub Releases:
 ## Note on AI
 
 This project includes some code generated with AI, then reviewed and adjusted manually.
+
+## Language note
+
+Some comments and strings inside the repository are written in Spanish.

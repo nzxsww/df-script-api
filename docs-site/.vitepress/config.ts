@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Dragonfly Script API',
   description: 'Motor de scripting para plugins JavaScript en servidores Minecraft Bedrock',
+  base: '/df-script-api/',
 
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }],

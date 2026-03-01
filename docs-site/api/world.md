@@ -67,6 +67,89 @@ world.spawnText(0, 70, 0, "§a§l¡Bienvenido al servidor!");
 world.spawnExperienceOrb(100, 64, 100, 50);
 ```
 
+## Entidades
+
+| Método | Retorna | Descripción |
+|---|---|---|
+| `getEntities()` | `entity[]` | Obtener todas las entidades del mundo |
+| `getEntitiesInRadius(x, y, z, radio)` | `entity[]` | Entidades dentro del radio esférico dado (en bloques) |
+| `removeEntityByUUID(uuid)` | `boolean` | Remover una entidad por su UUID. Retorna `true` si fue encontrada y removida |
+
+**Objeto `entity` retornado:**
+
+| Método | Disponible en | Descripción |
+|---|---|---|
+| `getUUID()` | Todas | UUID único de la entidad |
+| `getType()` | Todas | Tipo de entidad (ej: `"minecraft:item"`, `"minecraft:tnt"`, `"minecraft:arrow"`) |
+| `getX/Y/Z()` | Todas | Posición en el mundo |
+| `remove()` | Todas | Remover la entidad del mundo |
+| `teleport(x, y, z)` | Todas (si soporta) | Teletransportar la entidad |
+| `setVelocity(x, y, z)` | Todas (si soporta) | Cambiar velocidad |
+| `getHealth()` | Living (mobs) | Vida actual |
+| `getMaxHealth()` | Living (mobs) | Vida máxima |
+| `setMaxHealth(n)` | Living (mobs) | Cambiar vida máxima |
+| `isDead()` | Living (mobs) | Si está muerta |
+| `hurt(damage)` | Living (mobs) | Aplicar daño |
+| `heal(health)` | Living (mobs) | Curar |
+| `knockBack(x, y, z, fuerza, altura)` | Living (mobs) | Empujar |
+| `addEffect(nombre, nivel, segundos)` | Living (mobs) | Aplicar efecto de poción |
+| `removeEffect(nombre)` | Living (mobs) | Quitar efecto |
+| `clearEffects()` | Living (mobs) | Quitar todos los efectos |
+| `getSpeed()` | Living (mobs) | Velocidad de movimiento |
+| `getName()` | Jugadores | Nombre del jugador |
+| `sendMessage(msg)` | Jugadores | Enviar mensaje |
+| `sendTitle(texto, subtitulo)` | Jugadores | Mostrar título |
+| `disconnect(msg)` | Jugadores | Desconectar |
+
+```js
+// Listar todas las entidades del mundo
+var entities = world.getEntities();
+for (var i = 0; i < entities.length; i++) {
+    var e = entities[i];
+    console.log(e.getType() + " en " + e.getX() + "," + e.getY() + "," + e.getZ());
+}
+
+// Entidades en un radio de 10 bloques alrededor del jugador
+events.on("PlayerJoin", function(event) {
+    var p = event.getPlayer();
+    var nearby = world.getEntitiesInRadius(p.getX(), p.getY(), p.getZ(), 10);
+    p.sendMessage("§eEntidades cercanas: §f" + nearby.length);
+    for (var i = 0; i < nearby.length; i++) {
+        var e = nearby[i];
+        // Si es living, mostrar vida
+        if (typeof e.getHealth === "function") {
+            p.sendMessage("§7- §f" + e.getType() + " §7vida=" + e.getHealth().toFixed(1));
+        } else {
+            p.sendMessage("§7- §f" + e.getType());
+        }
+    }
+});
+
+// Remover entidad por UUID
+world.removeEntityByUUID("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
+
+// Remover todas las entidades de tipo TNT
+var entities = world.getEntities();
+for (var i = 0; i < entities.length; i++) {
+    if (entities[i].getType() === "minecraft:tnt") {
+        entities[i].remove();
+    }
+}
+```
+
+**Tipos de entidad comunes:**
+
+| Tipo | Descripción |
+|---|---|
+| `"minecraft:item"` | Item tirado en el suelo |
+| `"minecraft:tnt"` | TNT activado |
+| `"minecraft:arrow"` | Flecha |
+| `"minecraft:xp_orb"` | Orbe de experiencia |
+| `"minecraft:lightning_bolt"` | Rayo |
+| `"minecraft:falling_block"` | Bloque cayendo |
+| `"minecraft:fireworks_rocket"` | Fuego artificial |
+| `"dragonfly:text"` | Texto flotante (creado con `spawnText`) |
+
 ## Jugadores
 
 | Método | Retorna | Descripción |

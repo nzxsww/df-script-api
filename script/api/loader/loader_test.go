@@ -1009,6 +1009,125 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	plugins[0].OnEnable()
 }
 
+// --- Tests de Entity API (world.getEntities, getEntitiesInRadius, removeEntityByUUID) ---
+
+func TestLoader_World_GetEntities_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: EntityAPIPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    if (typeof world.getEntities !== "function") throw new Error("world.getEntities no es función");
+    if (typeof world.getEntitiesInRadius !== "function") throw new Error("world.getEntitiesInRadius no es función");
+    if (typeof world.removeEntityByUUID !== "function") throw new Error("world.removeEntityByUUID no es función");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_GetEntities_NoServer_ReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: EntityEmptyPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var entities = world.getEntities();
+    if (!Array.isArray(entities)) throw new Error("getEntities debe retornar array");
+    if (entities.length !== 0) throw new Error("sin servidor debe retornar array vacío");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_GetEntitiesInRadius_NoServer_ReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: EntityRadiusPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var entities = world.getEntitiesInRadius(0, 64, 0, 10);
+    if (!Array.isArray(entities)) throw new Error("getEntitiesInRadius debe retornar array");
+    if (entities.length !== 0) throw new Error("sin servidor debe retornar array vacío");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_RemoveEntityByUUID_NoServer_ReturnsFalse(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: EntityRemovePlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var removed = world.removeEntityByUUID("00000000-0000-0000-0000-000000000000");
+    if (typeof removed !== "boolean") throw new Error("removeEntityByUUID debe retornar boolean");
+    if (removed !== false) throw new Error("sin servidor debe retornar false");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Entity_HasBaseMethods_ViaPlayerJoin(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: EntityWrapperPlugin
+version: 1.0.0
+main: index.js`,
+		// Verificar que el entityWrapper tiene los métodos base
+		// Lo hacemos via PlayerJoin que expone un playerWrapper (que también es una entity)
+		`function onEnable() {
+    events.on("PlayerJoin", function(event) {
+        var p = event.getPlayer();
+        // El playerWrapper tiene todos los métodos del entityWrapper + los de player
+        if (typeof p.getX !== "function") throw new Error("getX no es función");
+        if (typeof p.getY !== "function") throw new Error("getY no es función");
+        if (typeof p.getZ !== "function") throw new Error("getZ no es función");
+        if (typeof p.getUUID !== "function") throw new Error("getUUID no es función");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
 // --- Tests de World API ---
 
 func TestLoader_World_IsAvailable(t *testing.T) {

@@ -304,6 +304,81 @@ func (w *playerWrapper) playSound(soundName string) {
 	w.p.PlaySound(s)
 }
 
+// newEntityWrapper construye un mapa JS con métodos para interactuar con una entidad del mundo.
+// Funciona con cualquier tipo de entidad (item, text, lightning, tnt, player, living, etc.)
+func newEntityWrapper(e world.Entity, tx *world.Tx) map[string]interface{} {
+	m := map[string]interface{}{
+		// --- Identidad ---
+		"getUUID": func() string { return e.H().UUID().String() },
+		"getType": func() string { return e.H().Type().EncodeEntity() },
+
+		// --- Posición ---
+		"getX": func() float64 { return e.Position().X() },
+		"getY": func() float64 { return e.Position().Y() },
+		"getZ": func() float64 { return e.Position().Z() },
+
+		// --- Acción ---
+		"remove": func() { tx.RemoveEntity(e) },
+		"teleport": func(x, y, z float64) {
+			if mover, ok := e.(interface{ Teleport(mgl64.Vec3) }); ok {
+				mover.Teleport(mgl64.Vec3{x, y, z})
+			}
+		},
+		"setVelocity": func(x, y, z float64) {
+			if mover, ok := e.(interface{ SetVelocity(mgl64.Vec3) }); ok {
+				mover.SetVelocity(mgl64.Vec3{x, y, z})
+			}
+		},
+	}
+
+	// Si la entidad implementa Living, agregar métodos de vida y efectos
+	if living, ok := e.(entity.Living); ok {
+		m["getHealth"] = func() float64 { return living.Health() }
+		m["getMaxHealth"] = func() float64 { return living.MaxHealth() }
+		m["setMaxHealth"] = func(h float64) { living.SetMaxHealth(h) }
+		m["isDead"] = func() bool { return living.Dead() }
+		m["hurt"] = func(damage float64) { living.Hurt(damage, entity.AttackDamageSource{}) }
+		m["heal"] = func(health float64) { living.Heal(health, entity.FoodHealingSource{}) }
+		m["knockBack"] = func(x, y, z, force, height float64) {
+			living.KnockBack(mgl64.Vec3{x, y, z}, force, height)
+		}
+		m["addEffect"] = func(name string, level int, seconds int) {
+			t, ok := effectTypeByName(name)
+			if !ok {
+				fmt.Printf("[entityWrapper] addEffect: efecto desconocido '%s'\n", name)
+				return
+			}
+			living.AddEffect(effect.New(t, level, time.Duration(seconds)*time.Second))
+		}
+		m["removeEffect"] = func(name string) {
+			t, ok := effectTypeByName(name)
+			if !ok {
+				return
+			}
+			living.RemoveEffect(t)
+		}
+		m["clearEffects"] = func() {
+			for _, eff := range living.Effects() {
+				living.RemoveEffect(eff.Type())
+			}
+		}
+		m["getSpeed"] = func() float64 { return living.Speed() }
+	}
+
+	// Si es un jugador, agregar métodos de jugador
+	if pl, ok := e.(*dfplayer.Player); ok {
+		m["getName"] = func() string { return pl.Name() }
+		m["sendMessage"] = func(msg string) { pl.Message(msg) }
+		m["sendTitle"] = func(text, subtitle string) {
+			t := title.New(text).WithSubtitle(subtitle)
+			pl.SendTitle(t)
+		}
+		m["disconnect"] = func(msg string) { pl.Disconnect(msg) }
+	}
+
+	return m
+}
+
 // effectTypeByName retorna el tipo de efecto de Dragonfly dado su nombre en string.
 func effectTypeByName(name string) (effect.LastingType, bool) {
 	switch name {
@@ -1038,6 +1113,61 @@ func (l *Loader) registerWorld(vm *goja.Runtime, p *ScriptPlugin) {
 				y = tx.HighestBlock(x, z)
 			})
 			return y
+		},
+
+		// --- Entidades ---
+
+		// getEntities() — retorna todas las entidades del mundo como objetos JS.
+		"getEntities": func() []interface{} {
+			if p.srv == nil {
+				return []interface{}{}
+			}
+			var entities []interface{}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				for e := range tx.Entities() {
+					entities = append(entities, newEntityWrapper(e, tx))
+				}
+			})
+			return entities
+		},
+
+		// getEntitiesInRadius(x, y, z, radio) — retorna entidades dentro del radio dado (en bloques).
+		"getEntitiesInRadius": func(x, y, z, radius float64) []interface{} {
+			if p.srv == nil {
+				return []interface{}{}
+			}
+			var entities []interface{}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				center := mgl64.Vec3{x, y, z}
+				box := cube.Box(x-radius, y-radius, z-radius, x+radius, y+radius, z+radius)
+				for e := range tx.EntitiesWithin(box) {
+					// Filtrar por distancia real (la box es un cubo, el radio es esférico)
+					if e.Position().Sub(center).Len() <= radius {
+						entities = append(entities, newEntityWrapper(e, tx))
+					}
+				}
+			})
+			return entities
+		},
+
+		// removeEntity(entity) — no aplicable desde el objeto world directamente.
+		// Usar entity.remove() en el objeto entity retornado por getEntities().
+		// Se incluye como conveniencia para remover por UUID.
+		"removeEntityByUUID": func(uuidStr string) bool {
+			if p.srv == nil {
+				return false
+			}
+			removed := false
+			p.srv.World().Exec(func(tx *world.Tx) {
+				for e := range tx.Entities() {
+					if e.H().UUID().String() == uuidStr {
+						tx.RemoveEntity(e)
+						removed = true
+						return
+					}
+				}
+			})
+			return removed
 		},
 
 		// --- Partículas ---

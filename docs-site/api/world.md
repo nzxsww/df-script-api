@@ -75,31 +75,7 @@ world.spawnExperienceOrb(100, 64, 100, 50);
 | `getEntitiesInRadius(x, y, z, radio)` | `entity[]` | Entidades dentro del radio esférico dado (en bloques) |
 | `removeEntityByUUID(uuid)` | `boolean` | Remover una entidad por su UUID. Retorna `true` si fue encontrada y removida |
 
-**Objeto `entity` retornado:**
-
-| Método | Disponible en | Descripción |
-|---|---|---|
-| `getUUID()` | Todas | UUID único de la entidad |
-| `getType()` | Todas | Tipo de entidad (ej: `"minecraft:item"`, `"minecraft:tnt"`, `"minecraft:arrow"`) |
-| `getX/Y/Z()` | Todas | Posición en el mundo |
-| `remove()` | Todas | Remover la entidad del mundo |
-| `teleport(x, y, z)` | Todas (si soporta) | Teletransportar la entidad |
-| `setVelocity(x, y, z)` | Todas (si soporta) | Cambiar velocidad |
-| `getHealth()` | Living (mobs) | Vida actual |
-| `getMaxHealth()` | Living (mobs) | Vida máxima |
-| `setMaxHealth(n)` | Living (mobs) | Cambiar vida máxima |
-| `isDead()` | Living (mobs) | Si está muerta |
-| `hurt(damage)` | Living (mobs) | Aplicar daño |
-| `heal(health)` | Living (mobs) | Curar |
-| `knockBack(x, y, z, fuerza, altura)` | Living (mobs) | Empujar |
-| `addEffect(nombre, nivel, segundos)` | Living (mobs) | Aplicar efecto de poción |
-| `removeEffect(nombre)` | Living (mobs) | Quitar efecto |
-| `clearEffects()` | Living (mobs) | Quitar todos los efectos |
-| `getSpeed()` | Living (mobs) | Velocidad de movimiento |
-| `getName()` | Jugadores | Nombre del jugador |
-| `sendMessage(msg)` | Jugadores | Enviar mensaje |
-| `sendTitle(texto, subtitulo)` | Jugadores | Mostrar título |
-| `disconnect(msg)` | Jugadores | Desconectar |
+Cada entidad retornada es un objeto con métodos propios. Ver la referencia completa en [Objeto Entity](/api/entity).
 
 ```js
 // Listar todas las entidades del mundo

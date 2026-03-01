@@ -75,31 +75,7 @@ world.spawnExperienceOrb(100, 64, 100, 50);
 | `getEntitiesInRadius(x, y, z, radius)` | `entity[]` | Entities within the given spherical radius (in blocks) |
 | `removeEntityByUUID(uuid)` | `boolean` | Remove an entity by UUID. Returns `true` if found and removed |
 
-**Entity object returned:**
-
-| Method | Available on | Description |
-|---|---|---|
-| `getUUID()` | All | Entity's unique UUID |
-| `getType()` | All | Entity type (e.g. `"minecraft:item"`, `"minecraft:tnt"`, `"minecraft:arrow"`) |
-| `getX/Y/Z()` | All | Position in the world |
-| `remove()` | All | Remove entity from the world |
-| `teleport(x, y, z)` | All (if supported) | Teleport the entity |
-| `setVelocity(x, y, z)` | All (if supported) | Change velocity |
-| `getHealth()` | Living (mobs) | Current health |
-| `getMaxHealth()` | Living (mobs) | Maximum health |
-| `setMaxHealth(n)` | Living (mobs) | Change max health |
-| `isDead()` | Living (mobs) | Whether the entity is dead |
-| `hurt(damage)` | Living (mobs) | Apply damage |
-| `heal(health)` | Living (mobs) | Heal |
-| `knockBack(x, y, z, force, height)` | Living (mobs) | Push back |
-| `addEffect(name, level, seconds)` | Living (mobs) | Apply potion effect |
-| `removeEffect(name)` | Living (mobs) | Remove effect |
-| `clearEffects()` | Living (mobs) | Remove all effects |
-| `getSpeed()` | Living (mobs) | Movement speed |
-| `getName()` | Players | Player name |
-| `sendMessage(msg)` | Players | Send message |
-| `sendTitle(text, subtitle)` | Players | Show title |
-| `disconnect(msg)` | Players | Disconnect |
+Each returned entity is an object with its own methods. See the full reference at [Entity Object](/en/api/entity).
 
 ```js
 // List all entities in the world

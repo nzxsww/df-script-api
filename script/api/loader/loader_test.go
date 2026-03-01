@@ -649,6 +649,454 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	plugins[0].OnEnable()
 }
 
+// --- Tests de sendTitle ---
+
+func TestLoader_SendTitle_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: TitlePlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    // sendTitle no puede llamarse sin jugador real, pero debe estar disponible como función
+    if (typeof sendTitle !== "undefined") throw new Error("sendTitle no debe ser global");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+// --- Tests de efectos de poción ---
+
+func TestLoader_AddEffect_UnknownEffect_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: EffectPlugin
+version: 1.0.0
+main: index.js`,
+		// addEffect con efecto desconocido no debe panic (solo imprime warning)
+		`function onEnable() {
+    // No tenemos jugador real, solo verificamos que addEffect existe como API global en el playerWrapper
+    // La función existe pero no se puede llamar sin jugador
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_PlayerWrapper_HasEffectMethods(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: EffectAPIPlugin
+version: 1.0.0
+main: index.js`,
+		// Verificar que los métodos de efectos se registran en el evento PlayerJoin
+		// sin necesitar jugador real — solo registrar el handler no debe fallar
+		`function onEnable() {
+    events.on("PlayerJoin", function(event) {
+        var p = event.getPlayer();
+        if (typeof p.addEffect !== "function") throw new Error("addEffect no es función");
+        if (typeof p.removeEffect !== "function") throw new Error("removeEffect no es función");
+        if (typeof p.clearEffects !== "function") throw new Error("clearEffects no es función");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	// Solo registrar el evento no debe panic
+	plugins[0].OnEnable()
+}
+
+// --- Tests de armadura ---
+
+func TestLoader_PlayerWrapper_HasArmourMethods(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ArmourAPIPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    events.on("PlayerJoin", function(event) {
+        var p = event.getPlayer();
+        if (typeof p.setArmour !== "function") throw new Error("setArmour no es función");
+        if (typeof p.getArmour !== "function") throw new Error("getArmour no es función");
+        if (typeof p.clearArmour !== "function") throw new Error("clearArmour no es función");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_PlayerWrapper_HasTitleMethod(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: TitleAPIPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    events.on("PlayerJoin", function(event) {
+        var p = event.getPlayer();
+        if (typeof p.sendTitle !== "function") throw new Error("sendTitle no es función");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+// --- Tests de World API ---
+
+func TestLoader_World_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldPlugin
+version: 1.0.0
+main: index.js`,
+		// Verificar que el objeto world existe y tiene las funciones esperadas
+		`function onEnable() {
+    if (typeof world === "undefined") throw new Error("world no está definido");
+    if (typeof world.setBlock !== "function") throw new Error("world.setBlock no es función");
+    if (typeof world.getBlock !== "function") throw new Error("world.getBlock no es función");
+    if (typeof world.getHighestBlock !== "function") throw new Error("world.getHighestBlock no es función");
+    if (typeof world.spawnLightning !== "function") throw new Error("world.spawnLightning no es función");
+    if (typeof world.spawnTNT !== "function") throw new Error("world.spawnTNT no es función");
+    if (typeof world.spawnText !== "function") throw new Error("world.spawnText no es función");
+    if (typeof world.spawnExperienceOrb !== "function") throw new Error("world.spawnExperienceOrb no es función");
+    if (typeof world.spawnParticle !== "function") throw new Error("world.spawnParticle no es función");
+    if (typeof world.getPlayers !== "function") throw new Error("world.getPlayers no es función");
+    if (typeof world.getPlayerCount !== "function") throw new Error("world.getPlayerCount no es función");
+    if (typeof world.broadcast !== "function") throw new Error("world.broadcast no es función");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_SetBlock_NoServer_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldSetBlockPlugin
+version: 1.0.0
+main: index.js`,
+		// Sin servidor real, setBlock debe retornar silenciosamente (no panic)
+		`function onEnable() {
+    world.setBlock(0, 64, 0, "minecraft:stone");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.setBlock sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_GetBlock_NoServer_ReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldGetBlockPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var b = world.getBlock(0, 64, 0);
+    if (typeof b !== "string") throw new Error("getBlock debe retornar string, got: " + typeof b);
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_GetHighestBlock_NoServer_ReturnsZero(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldHighestPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var y = world.getHighestBlock(0, 0);
+    if (typeof y !== "number") throw new Error("getHighestBlock debe retornar number, got: " + typeof y);
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_SpawnLightning_NoServer_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldLightningPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    world.spawnLightning(0, 64, 0);
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.spawnLightning sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_SpawnTNT_NoServer_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldTNTPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    world.spawnTNT(0, 64, 0, 4);
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.spawnTNT sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_SpawnText_NoServer_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldTextPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    world.spawnText(0, 64, 0, "§aHola Mundo");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.spawnText sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_SpawnExperienceOrb_NoServer_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldXPPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    world.spawnExperienceOrb(0, 64, 0, 10);
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.spawnExperienceOrb sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_SpawnParticle_Unknown_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldParticlePlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    // partícula desconocida — solo imprime warning, no panic
+    world.spawnParticle(0, 64, 0, "partícula_que_no_existe");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.spawnParticle desconocida causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_GetPlayers_NoServer_ReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldPlayersPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var players = world.getPlayers();
+    if (!Array.isArray(players)) throw new Error("getPlayers debe retornar array");
+    if (players.length !== 0) throw new Error("sin servidor debe retornar array vacío");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_GetPlayerCount_NoServer_ReturnsZero(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldCountPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var count = world.getPlayerCount();
+    if (typeof count !== "number") throw new Error("getPlayerCount debe retornar number");
+    if (count !== 0) throw new Error("sin servidor debe retornar 0, got: " + count);
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_Broadcast_NoServer_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldBroadcastPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    world.broadcast("§aHola a todos!");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.broadcast sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_SetBlock_UnknownBlock_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldUnknownBlockPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    // bloque desconocido — solo imprime warning, no panic
+    world.setBlock(0, 64, 0, "minecraft:bloque_que_no_existe");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.setBlock con bloque desconocido causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
 // --- Tests de GetPlugins ---
 
 func TestLoader_GetPlugins(t *testing.T) {

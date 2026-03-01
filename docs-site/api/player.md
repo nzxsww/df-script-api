@@ -224,6 +224,79 @@ player.playSound("levelup");
 player.playSound("deny");
 ```
 
+## Títulos
+
+| Método | Descripción |
+|---|---|
+| `sendTitle(texto, subtitulo)` | Mostrar un título grande en el centro de la pantalla con subtítulo opcional |
+
+```js
+player.sendTitle("§a¡Bienvenido!", "§7Que la pases bien");
+```
+
+## Efectos de poción
+
+| Método | Descripción |
+|---|---|
+| `addEffect(nombre, nivel, segundos)` | Aplicar un efecto de poción. `nivel` empieza en 1 (nivel I) |
+| `removeEffect(nombre)` | Quitar un efecto específico |
+| `clearEffects()` | Quitar todos los efectos activos |
+
+**Efectos disponibles:**
+
+| Nombre | Descripción |
+|---|---|
+| `"speed"` | Moverse más rápido |
+| `"slowness"` | Moverse más lento |
+| `"haste"` | Minar más rápido |
+| `"mining_fatigue"` | Minar más lento |
+| `"strength"` | Hacer más daño |
+| `"jump_boost"` | Saltar más alto |
+| `"nausea"` | Visión distorsionada |
+| `"regeneration"` | Regenerar vida |
+| `"resistance"` | Recibir menos daño |
+| `"fire_resistance"` | Inmune al fuego |
+| `"water_breathing"` | Respirar bajo el agua |
+| `"invisibility"` | Invisible para otros |
+| `"blindness"` | Visión reducida |
+| `"night_vision"` | Ver en la oscuridad |
+| `"hunger"` | Perder hambre más rápido |
+| `"weakness"` | Hacer menos daño |
+| `"poison"` | Perder vida gradualmente |
+| `"wither"` | Perder vida (ignora armadura) |
+| `"health_boost"` | Aumentar vida máxima |
+| `"absorption"` | Puntos de vida extra |
+| `"saturation"` | Restaurar comida instantáneamente |
+| `"levitation"` | Flotar hacia arriba |
+| `"slow_falling"` | Caer lentamente |
+| `"conduit_power"` | Haste + visión bajo el agua |
+| `"darkness"` | Visión muy reducida |
+
+```js
+player.addEffect("speed", 2, 30);       // Velocidad II por 30 segundos
+player.addEffect("regeneration", 1, 10); // Regeneración I por 10 segundos
+player.removeEffect("speed");
+player.clearEffects();
+```
+
+## Armadura
+
+| Método | Retorna | Descripción |
+|---|---|---|
+| `setArmour(slot, nombre)` | — | Equipar una pieza de armadura. Slot: `0`=casco, `1`=pechera, `2`=pantalones, `3`=botas |
+| `getArmour(slot)` | `string` | Obtener el nombre del item en ese slot. Retorna `""` si está vacío |
+| `clearArmour()` | — | Quitar toda la armadura |
+
+```js
+player.setArmour(0, "minecraft:diamond_helmet");
+player.setArmour(1, "minecraft:diamond_chestplate");
+player.setArmour(2, "minecraft:diamond_leggings");
+player.setArmour(3, "minecraft:diamond_boots");
+
+var casco = player.getArmour(0); // "minecraft:diamond_helmet"
+player.clearArmour();
+```
+
 ## Comandos
 
 | Método | Descripción |

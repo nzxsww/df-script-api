@@ -7,9 +7,14 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
+	"github.com/df-mc/dragonfly/server/block/cube"
+	"github.com/df-mc/dragonfly/server/entity"
+	"github.com/df-mc/dragonfly/server/entity/effect"
 	dfitem "github.com/df-mc/dragonfly/server/item"
 	dfplayer "github.com/df-mc/dragonfly/server/player"
+	"github.com/df-mc/dragonfly/server/player/title"
 	"github.com/df-mc/dragonfly/server/world"
+	"github.com/df-mc/dragonfly/server/world/particle"
 	"github.com/df-mc/dragonfly/server/world/sound"
 	"github.com/dop251/goja"
 	"github.com/go-gl/mathgl/mgl64"
@@ -52,6 +57,7 @@ func newPlayerWrapper(p *dfplayer.Player) map[string]interface{} {
 		"sendTip":          w.sendTip,
 		"sendToast":        w.sendToast,
 		"sendJukeboxPopup": w.sendJukeboxPopup,
+		"sendTitle":        w.sendTitle,
 		// Conexión
 		"disconnect": w.disconnect,
 		"transfer":   w.transfer,
@@ -101,6 +107,14 @@ func newPlayerWrapper(p *dfplayer.Player) map[string]interface{} {
 		"getItemCount":   w.getItemCount,
 		// Sonidos
 		"playSound": w.playSound,
+		// Efectos de poción
+		"addEffect":    w.addEffect,
+		"removeEffect": w.removeEffect,
+		"clearEffects": w.clearEffects,
+		// Armadura
+		"setArmour":   w.setArmour,
+		"getArmour":   w.getArmour,
+		"clearArmour": w.clearArmour,
 	}
 }
 
@@ -115,8 +129,12 @@ func (w *playerWrapper) setNameTag(name string) { w.p.SetNameTag(name) }
 func (w *playerWrapper) sendMessage(msg string)      { w.p.Message(msg) }
 func (w *playerWrapper) sendPopup(msg string)        { w.p.SendPopup(msg) }
 func (w *playerWrapper) sendTip(msg string)          { w.p.SendTip(msg) }
-func (w *playerWrapper) sendToast(title, msg string) { w.p.SendToast(title, msg) }
+func (w *playerWrapper) sendToast(t, msg string) { w.p.SendToast(t, msg) }
 func (w *playerWrapper) sendJukeboxPopup(msg string) { w.p.SendJukeboxPopup(msg) }
+func (w *playerWrapper) sendTitle(text, subtitle string) {
+	t := title.New(text).WithSubtitle(subtitle)
+	w.p.SendTitle(t)
+}
 
 // --- Conexión ---
 func (w *playerWrapper) disconnect(msg string) { w.p.Disconnect(msg) }
@@ -284,6 +302,151 @@ func (w *playerWrapper) playSound(soundName string) {
 		return
 	}
 	w.p.PlaySound(s)
+}
+
+// effectTypeByName retorna el tipo de efecto de Dragonfly dado su nombre en string.
+func effectTypeByName(name string) (effect.LastingType, bool) {
+	switch name {
+	case "speed":
+		return effect.Speed, true
+	case "slowness":
+		return effect.Slowness, true
+	case "haste":
+		return effect.Haste, true
+	case "mining_fatigue":
+		return effect.MiningFatigue, true
+	case "strength":
+		return effect.Strength, true
+	case "jump_boost":
+		return effect.JumpBoost, true
+	case "nausea":
+		return effect.Nausea, true
+	case "regeneration":
+		return effect.Regeneration, true
+	case "resistance":
+		return effect.Resistance, true
+	case "fire_resistance":
+		return effect.FireResistance, true
+	case "water_breathing":
+		return effect.WaterBreathing, true
+	case "invisibility":
+		return effect.Invisibility, true
+	case "blindness":
+		return effect.Blindness, true
+	case "night_vision":
+		return effect.NightVision, true
+	case "hunger":
+		return effect.Hunger, true
+	case "weakness":
+		return effect.Weakness, true
+	case "poison":
+		return effect.Poison, true
+	case "wither":
+		return effect.Wither, true
+	case "health_boost":
+		return effect.HealthBoost, true
+	case "absorption":
+		return effect.Absorption, true
+	case "saturation":
+		return effect.Saturation, true
+	case "levitation":
+		return effect.Levitation, true
+	case "slow_falling":
+		return effect.SlowFalling, true
+	case "conduit_power":
+		return effect.ConduitPower, true
+	case "darkness":
+		return effect.Darkness, true
+	default:
+		return nil, false
+	}
+}
+
+// --- Efectos de poción ---
+
+// addEffect agrega un efecto de poción al jugador.
+// nombre: nombre del efecto (ej: "speed", "strength", "regeneration")
+// nivel: nivel del efecto (1 = nivel I, 2 = nivel II, etc.)
+// segundos: duración en segundos
+func (w *playerWrapper) addEffect(name string, level int, seconds int) {
+	t, ok := effectTypeByName(name)
+	if !ok {
+		fmt.Printf("[playerWrapper] addEffect: efecto desconocido '%s'\n", name)
+		return
+	}
+	w.p.AddEffect(effect.New(t, level, time.Duration(seconds)*time.Second))
+}
+
+// removeEffect elimina un efecto activo del jugador por nombre.
+func (w *playerWrapper) removeEffect(name string) {
+	t, ok := effectTypeByName(name)
+	if !ok {
+		fmt.Printf("[playerWrapper] removeEffect: efecto desconocido '%s'\n", name)
+		return
+	}
+	w.p.RemoveEffect(t)
+}
+
+// clearEffects elimina todos los efectos activos del jugador.
+func (w *playerWrapper) clearEffects() {
+	for _, e := range w.p.Effects() {
+		w.p.RemoveEffect(e.Type())
+	}
+}
+
+// --- Armadura ---
+
+// setArmour equipa una pieza de armadura al jugador.
+// slot: 0=casco, 1=pechera, 2=pantalones, 3=botas
+// itemName: nombre del item (ej: "minecraft:diamond_helmet")
+func (w *playerWrapper) setArmour(slot int, itemName string) {
+	it, ok := world.ItemByName(itemName, 0)
+	if !ok {
+		fmt.Printf("[playerWrapper] setArmour: item desconocido '%s'\n", itemName)
+		return
+	}
+	stack := dfitem.NewStack(it, 1)
+	switch slot {
+	case 0:
+		w.p.Armour().SetHelmet(stack)
+	case 1:
+		w.p.Armour().SetChestplate(stack)
+	case 2:
+		w.p.Armour().SetLeggings(stack)
+	case 3:
+		w.p.Armour().SetBoots(stack)
+	default:
+		fmt.Printf("[playerWrapper] setArmour: slot inválido %d (0=casco, 1=pechera, 2=pantalones, 3=botas)\n", slot)
+	}
+}
+
+// getArmour retorna el nombre del item equipado en el slot de armadura dado.
+// slot: 0=casco, 1=pechera, 2=pantalones, 3=botas
+// Retorna "" si el slot está vacío.
+func (w *playerWrapper) getArmour(slot int) string {
+	var stack dfitem.Stack
+	switch slot {
+	case 0:
+		stack = w.p.Armour().Helmet()
+	case 1:
+		stack = w.p.Armour().Chestplate()
+	case 2:
+		stack = w.p.Armour().Leggings()
+	case 3:
+		stack = w.p.Armour().Boots()
+	default:
+		return ""
+	}
+	if stack.Empty() {
+		return ""
+	}
+	name, _ := stack.Item().EncodeItem()
+	return name
+}
+
+// clearArmour quita toda la armadura del jugador.
+func (w *playerWrapper) clearArmour() {
+	w.p.Armour().Set(dfitem.Stack{}, dfitem.Stack{}, dfitem.Stack{}, dfitem.Stack{})
 }
 
 // ScriptPlugin representa un plugin cargado desde JavaScript.
@@ -456,6 +619,7 @@ func (l *Loader) loadScript(p *ScriptPlugin, scriptFile string) error {
 	l.registerEvents(vm, p)
 	l.registerCommands(vm, p)
 	l.registerConfig(vm, p)
+	l.registerWorld(vm, p)
 
 	// Leer y ejecutar el script
 	scriptContent, err := os.ReadFile(scriptFile)
@@ -686,6 +850,184 @@ func (l *Loader) registerCommands(vm *goja.Runtime, p *ScriptPlugin) {
 			jsCallback := command.MakeJSCallback(vm, callback, p.name)
 			command.Register(name, description, aliases, jsCallback)
 			return goja.Undefined()
+		},
+	})
+}
+
+// registerWorld expone el objeto `world` con métodos para interactuar con el mundo y entidades.
+func (l *Loader) registerWorld(vm *goja.Runtime, p *ScriptPlugin) {
+	vm.Set("world", map[string]interface{}{
+		// --- Bloques ---
+
+		// setBlock(x, y, z, nombre) — coloca un bloque en la posición dada.
+		// nombre: nombre del bloque (ej: "minecraft:stone", "minecraft:grass")
+		"setBlock": func(x, y, z int, blockName string) {
+			if p.srv == nil {
+				return
+			}
+			b, ok := world.BlockByName(blockName, nil)
+			if !ok {
+				fmt.Printf("[%s] world.setBlock: bloque desconocido '%s'\n", p.name, blockName)
+				return
+			}
+			pos := cube.Pos{x, y, z}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				tx.SetBlock(pos, b, nil)
+			})
+		},
+
+		// getBlock(x, y, z) — retorna el nombre del bloque en la posición dada.
+		"getBlock": func(x, y, z int) string {
+			if p.srv == nil {
+				return ""
+			}
+			pos := cube.Pos{x, y, z}
+			var name string
+			p.srv.World().Exec(func(tx *world.Tx) {
+				b := tx.Block(pos)
+				n, _ := b.EncodeBlock()
+				name = n
+			})
+			return name
+		},
+
+		// getHighestBlock(x, z) — retorna la Y del bloque más alto en las coordenadas X,Z dadas.
+		"getHighestBlock": func(x, z int) int {
+			if p.srv == nil {
+				return 0
+			}
+			var y int
+			p.srv.World().Exec(func(tx *world.Tx) {
+				y = tx.HighestBlock(x, z)
+			})
+			return y
+		},
+
+		// --- Partículas ---
+
+		// spawnParticle(x, y, z, nombre) — genera una partícula en la posición dada.
+		// Partículas disponibles: "flame", "smoke", "lava", "water_drip", "lava_drip",
+		// "explosion", "bone_meal", "evaporate", "snowball", "egg_smash", "splash"
+		"spawnParticle": func(x, y, z float64, particleName string) {
+			if p.srv == nil {
+				return
+			}
+			pos := mgl64.Vec3{x, y, z}
+			var par world.Particle
+			switch particleName {
+			case "flame":
+				par = particle.Flame{}
+			case "lava":
+				par = particle.Lava{}
+			case "water_drip":
+				par = particle.WaterDrip{}
+			case "lava_drip":
+				par = particle.LavaDrip{}
+			case "explosion":
+				par = particle.HugeExplosion{}
+			case "bone_meal":
+				par = particle.BoneMeal{}
+			case "evaporate":
+				par = particle.Evaporate{}
+			case "snowball":
+				par = particle.SnowballPoof{}
+			case "egg_smash":
+				par = particle.EggSmash{}
+			case "entity_flame":
+				par = particle.EntityFlame{}
+			default:
+				fmt.Printf("[%s] world.spawnParticle: partícula desconocida '%s'\n", p.name, particleName)
+				return
+			}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				tx.AddParticle(pos, par)
+			})
+		},
+
+		// --- Entidades ---
+
+		// spawnLightning(x, y, z) — invoca un rayo en la posición dada.
+		"spawnLightning": func(x, y, z float64) {
+			if p.srv == nil {
+				return
+			}
+			pos := mgl64.Vec3{x, y, z}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				tx.AddEntity(entity.NewLightning(world.EntitySpawnOpts{Position: pos}))
+			})
+		},
+
+		// spawnTNT(x, y, z, fuse) — invoca un TNT en la posición dada.
+		// fuse: tiempo en segundos antes de explotar (ej: 4)
+		"spawnTNT": func(x, y, z float64, fuseSecs float64) {
+			if p.srv == nil {
+				return
+			}
+			pos := mgl64.Vec3{x, y, z}
+			fuse := time.Duration(fuseSecs * float64(time.Second))
+			p.srv.World().Exec(func(tx *world.Tx) {
+				tx.AddEntity(entity.NewTNT(world.EntitySpawnOpts{Position: pos}, fuse))
+			})
+		},
+
+		// spawnText(x, y, z, texto) — crea un texto flotante en la posición dada.
+		"spawnText": func(x, y, z float64, text string) {
+			if p.srv == nil {
+				return
+			}
+			pos := mgl64.Vec3{x, y, z}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				tx.AddEntity(entity.NewText(text, pos))
+			})
+		},
+
+		// spawnExperienceOrb(x, y, z, cantidad) — genera un orbe de experiencia.
+		"spawnExperienceOrb": func(x, y, z float64, amount int) {
+			if p.srv == nil {
+				return
+			}
+			pos := mgl64.Vec3{x, y, z}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				for _, orb := range entity.NewExperienceOrbs(pos, amount) {
+					tx.AddEntity(orb)
+				}
+			})
+		},
+
+		// --- Jugadores ---
+
+		// getPlayers() — retorna una lista con los wrappers de todos los jugadores conectados.
+		"getPlayers": func() []interface{} {
+			if p.srv == nil {
+				return []interface{}{}
+			}
+			var players []interface{}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				for pl := range p.srv.Players(tx) {
+					players = append(players, newPlayerWrapper(pl))
+				}
+			})
+			return players
+		},
+
+		// getPlayerCount() — retorna la cantidad de jugadores conectados.
+		"getPlayerCount": func() int {
+			if p.srv == nil {
+				return 0
+			}
+			return p.srv.PlayerCount()
+		},
+
+		// broadcast(msg) — envía un mensaje a todos los jugadores conectados.
+		"broadcast": func(msg string) {
+			if p.srv == nil {
+				return
+			}
+			p.srv.World().Exec(func(tx *world.Tx) {
+				for pl := range p.srv.Players(tx) {
+					pl.Message(msg)
+				}
+			})
 		},
 	})
 }

@@ -5,10 +5,13 @@ package command
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/df-mc/dragonfly/server/cmd"
+	"github.com/df-mc/dragonfly/server/entity/effect"
 	dfitem "github.com/df-mc/dragonfly/server/item"
 	dfplayer "github.com/df-mc/dragonfly/server/player"
+	"github.com/df-mc/dragonfly/server/player/title"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/sound"
 	"github.com/dop251/goja"
@@ -118,8 +121,12 @@ func buildPlayerMap(p *dfplayer.Player) map[string]interface{} {
 		"sendMessage":      func(msg string) { p.Message(msg) },
 		"sendPopup":        func(msg string) { p.SendPopup(msg) },
 		"sendTip":          func(msg string) { p.SendTip(msg) },
-		"sendToast":        func(title, msg string) { p.SendToast(title, msg) },
+		"sendToast":        func(t, msg string) { p.SendToast(t, msg) },
 		"sendJukeboxPopup": func(msg string) { p.SendJukeboxPopup(msg) },
+		"sendTitle": func(text, subtitle string) {
+			t := title.New(text).WithSubtitle(subtitle)
+			p.SendTitle(t)
+		},
 		// Conexión
 		"disconnect": func(msg string) { p.Disconnect(msg) },
 		"transfer": func(address string) {
@@ -257,6 +264,131 @@ func buildPlayerMap(p *dfplayer.Player) map[string]interface{} {
 		},
 		// Comandos
 		"executeCommand": func(cmd string) { p.ExecuteCommand(cmd) },
+		// Efectos de poción
+		"addEffect": func(name string, level int, seconds int) {
+			t, ok := effectTypeByName(name)
+			if !ok {
+				fmt.Printf("[Commands] addEffect: efecto desconocido '%s'\n", name)
+				return
+			}
+			p.AddEffect(effect.New(t, level, time.Duration(seconds)*time.Second))
+		},
+		"removeEffect": func(name string) {
+			t, ok := effectTypeByName(name)
+			if !ok {
+				fmt.Printf("[Commands] removeEffect: efecto desconocido '%s'\n", name)
+				return
+			}
+			p.RemoveEffect(t)
+		},
+		"clearEffects": func() {
+			for _, e := range p.Effects() {
+				p.RemoveEffect(e.Type())
+			}
+		},
+		// Armadura
+		"setArmour": func(slot int, itemName string) {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				fmt.Printf("[Commands] setArmour: item desconocido '%s'\n", itemName)
+				return
+			}
+			stack := dfitem.NewStack(it, 1)
+			switch slot {
+			case 0:
+				p.Armour().SetHelmet(stack)
+			case 1:
+				p.Armour().SetChestplate(stack)
+			case 2:
+				p.Armour().SetLeggings(stack)
+			case 3:
+				p.Armour().SetBoots(stack)
+			default:
+				fmt.Printf("[Commands] setArmour: slot inválido %d\n", slot)
+			}
+		},
+		"getArmour": func(slot int) string {
+			var stack dfitem.Stack
+			switch slot {
+			case 0:
+				stack = p.Armour().Helmet()
+			case 1:
+				stack = p.Armour().Chestplate()
+			case 2:
+				stack = p.Armour().Leggings()
+			case 3:
+				stack = p.Armour().Boots()
+			default:
+				return ""
+			}
+			if stack.Empty() {
+				return ""
+			}
+			name, _ := stack.Item().EncodeItem()
+			return name
+		},
+		"clearArmour": func() {
+			p.Armour().Set(dfitem.Stack{}, dfitem.Stack{}, dfitem.Stack{}, dfitem.Stack{})
+		},
+	}
+}
+
+// effectTypeByName retorna el tipo de efecto de Dragonfly dado su nombre en string.
+// IMPORTANTE: debe mantenerse sincronizado con effectTypeByName en loader/loader.go.
+func effectTypeByName(name string) (effect.LastingType, bool) {
+	switch name {
+	case "speed":
+		return effect.Speed, true
+	case "slowness":
+		return effect.Slowness, true
+	case "haste":
+		return effect.Haste, true
+	case "mining_fatigue":
+		return effect.MiningFatigue, true
+	case "strength":
+		return effect.Strength, true
+	case "jump_boost":
+		return effect.JumpBoost, true
+	case "nausea":
+		return effect.Nausea, true
+	case "regeneration":
+		return effect.Regeneration, true
+	case "resistance":
+		return effect.Resistance, true
+	case "fire_resistance":
+		return effect.FireResistance, true
+	case "water_breathing":
+		return effect.WaterBreathing, true
+	case "invisibility":
+		return effect.Invisibility, true
+	case "blindness":
+		return effect.Blindness, true
+	case "night_vision":
+		return effect.NightVision, true
+	case "hunger":
+		return effect.Hunger, true
+	case "weakness":
+		return effect.Weakness, true
+	case "poison":
+		return effect.Poison, true
+	case "wither":
+		return effect.Wither, true
+	case "health_boost":
+		return effect.HealthBoost, true
+	case "absorption":
+		return effect.Absorption, true
+	case "saturation":
+		return effect.Saturation, true
+	case "levitation":
+		return effect.Levitation, true
+	case "slow_falling":
+		return effect.SlowFalling, true
+	case "conduit_power":
+		return effect.ConduitPower, true
+	case "darkness":
+		return effect.Darkness, true
+	default:
+		return nil, false
 	}
 }
 

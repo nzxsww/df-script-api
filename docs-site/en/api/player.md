@@ -144,6 +144,79 @@ player.clearInventory();
 | `"bow_shoot"` | Shoot |
 | `"arrow_hit"` | Arrow impact |
 
+## Titles
+
+| Method | Description |
+|---|---|
+| `sendTitle(text, subtitle)` | Show a large title in the center of the screen with an optional subtitle |
+
+```js
+player.sendTitle("§aWelcome!", "§7Have a great time");
+```
+
+## Potion Effects
+
+| Method | Description |
+|---|---|
+| `addEffect(name, level, seconds)` | Apply a potion effect. `level` starts at 1 (level I) |
+| `removeEffect(name)` | Remove a specific effect |
+| `clearEffects()` | Remove all active effects |
+
+**Available effects:**
+
+| Name | Description |
+|---|---|
+| `"speed"` | Move faster |
+| `"slowness"` | Move slower |
+| `"haste"` | Mine faster |
+| `"mining_fatigue"` | Mine slower |
+| `"strength"` | Deal more damage |
+| `"jump_boost"` | Jump higher |
+| `"nausea"` | Distorted vision |
+| `"regeneration"` | Regenerate health |
+| `"resistance"` | Take less damage |
+| `"fire_resistance"` | Immune to fire |
+| `"water_breathing"` | Breathe underwater |
+| `"invisibility"` | Invisible to others |
+| `"blindness"` | Reduced vision |
+| `"night_vision"` | See in the dark |
+| `"hunger"` | Lose hunger faster |
+| `"weakness"` | Deal less damage |
+| `"poison"` | Lose health over time |
+| `"wither"` | Lose health (bypasses armour) |
+| `"health_boost"` | Increase max health |
+| `"absorption"` | Extra health points |
+| `"saturation"` | Restore food instantly |
+| `"levitation"` | Float upward |
+| `"slow_falling"` | Fall slowly |
+| `"conduit_power"` | Underwater haste + vision |
+| `"darkness"` | Reduced vision (like blindness) |
+
+```js
+player.addEffect("speed", 2, 30);      // Speed II for 30 seconds
+player.addEffect("regeneration", 1, 10); // Regeneration I for 10 seconds
+player.removeEffect("speed");
+player.clearEffects();
+```
+
+## Armour
+
+| Method | Returns | Description |
+|---|---|---|
+| `setArmour(slot, itemName)` | — | Equip an armour piece. Slot: `0`=helmet, `1`=chestplate, `2`=leggings, `3`=boots |
+| `getArmour(slot)` | `string` | Get the item name in that armour slot. Returns `""` if empty |
+| `clearArmour()` | — | Remove all equipped armour |
+
+```js
+player.setArmour(0, "minecraft:diamond_helmet");
+player.setArmour(1, "minecraft:diamond_chestplate");
+player.setArmour(2, "minecraft:diamond_leggings");
+player.setArmour(3, "minecraft:diamond_boots");
+
+var helmet = player.getArmour(0); // "minecraft:diamond_helmet"
+player.clearArmour();
+```
+
 ## Commands
 
 | Method | Description |

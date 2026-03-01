@@ -126,6 +126,49 @@ function onEnable() {
         player.sendMessage("§aModo supervivencia activado.");
     });
 
+    commands.register("armadura", "Equipa armadura de diamante completa", function(player, args) {
+        player.setArmour(0, "minecraft:diamond_helmet");
+        player.setArmour(1, "minecraft:diamond_chestplate");
+        player.setArmour(2, "minecraft:diamond_leggings");
+        player.setArmour(3, "minecraft:diamond_boots");
+        player.sendMessage("§bArmadura de diamante equipada!");
+        player.sendTitle("§b§lArmadura", "§7diamond completa");
+        player.playSound("anvil_land");
+        console.log("[TEST] setArmour: " + player.getName() + " equipó armadura de diamante");
+    });
+
+    commands.register("quitararmadura", "Quita toda la armadura", function(player, args) {
+        player.clearArmour();
+        player.sendMessage("§7Armadura quitada.");
+        console.log("[TEST] clearArmour: " + player.getName());
+    });
+
+    commands.register("verarmadura", "Muestra la armadura equipada", function(player, args) {
+        var casco     = player.getArmour(0) || "ninguno";
+        var pechera   = player.getArmour(1) || "ninguna";
+        var pantalon  = player.getArmour(2) || "ninguno";
+        var botas     = player.getArmour(3) || "ninguna";
+        player.sendMessage("§eCasco: §f"    + casco);
+        player.sendMessage("§ePechera: §f"  + pechera);
+        player.sendMessage("§ePantalón: §f" + pantalon);
+        player.sendMessage("§eBotas: §f"    + botas);
+    });
+
+    commands.register("efecto", "Aplica speed II + regeneration I por 30s", function(player, args) {
+        player.addEffect("speed", 2, 30);
+        player.addEffect("regeneration", 1, 30);
+        player.sendMessage("§aEfectos aplicados: §fSpeed II + Regeneration I (30s)");
+        player.sendTitle("§a§lEfectos!", "§7Speed II + Regen I");
+        player.playSound("levelup");
+        console.log("[TEST] addEffect: " + player.getName() + " speed+regen");
+    });
+
+    commands.register("quitarefectos", "Quita todos los efectos activos", function(player, args) {
+        player.clearEffects();
+        player.sendMessage("§7Todos los efectos eliminados.");
+        console.log("[TEST] clearEffects: " + player.getName());
+    });
+
     commands.register("fly", "Activa o desactiva el vuelo", function(player, args) {
         // StartFlying/StopFlying solo funciona en gamemodes que permiten volar (creative/spectator).
         // Si el jugador está en survival o adventure, primero lo pasamos a creative.
@@ -141,6 +184,118 @@ function onEnable() {
             player.startFlying();
             player.sendMessage("§aVuelo activado.");
         }
+    });
+
+    // --- TEST: PlayerMove ---
+    events.on("PlayerMove", function(event) {
+        // Solo loguear en servidor, demasiado frecuente para title
+        var p = event.getPlayer();
+        // console.log("[TEST] PlayerMove: " + p.getName() + " -> " + Math.floor(event.getToX()) + "," + Math.floor(event.getToY()) + "," + Math.floor(event.getToZ()));
+    });
+
+    // --- TEST: PlayerJump ---
+    events.on("PlayerJump", function(event) {
+        var p = event.getPlayer();
+        console.log("[TEST] PlayerJump: " + p.getName());
+        p.sendTitle("§eSaltaste!", "§7PlayerJump OK");
+    });
+
+    // --- TEST: PlayerToggleSprint ---
+    events.on("PlayerToggleSprint", function(event) {
+        var p = event.getPlayer();
+        var sprinting = event.isSprinting();
+        console.log("[TEST] PlayerToggleSprint: " + p.getName() + " sprinting=" + sprinting);
+        p.sendTitle(sprinting ? "§aCorriendo" : "§7Caminando", "§7PlayerToggleSprint OK");
+    });
+
+    // --- TEST: PlayerToggleSneak ---
+    events.on("PlayerToggleSneak", function(event) {
+        var p = event.getPlayer();
+        var sneaking = event.isSneaking();
+        console.log("[TEST] PlayerToggleSneak: " + p.getName() + " sneaking=" + sneaking);
+        p.sendTitle(sneaking ? "§6Agachado" : "§7De pie", "§7PlayerToggleSneak OK");
+    });
+
+    // --- TEST: PlayerHurt ---
+    events.on("PlayerHurt", function(event) {
+        var p = event.getPlayer();
+        var dmg = event.getDamage();
+        console.log("[TEST] PlayerHurt: " + p.getName() + " daño=" + dmg);
+        p.sendTitle("§cDaño recibido", "§f" + dmg.toFixed(1) + " pts — PlayerHurt OK");
+    });
+
+    // --- TEST: PlayerHeal ---
+    events.on("PlayerHeal", function(event) {
+        var p = event.getPlayer();
+        var hp = event.getHealth();
+        console.log("[TEST] PlayerHeal: " + p.getName() + " curación=" + hp);
+        p.sendTitle("§aRecuperando vida", "§f+" + hp.toFixed(1) + " — PlayerHeal OK");
+    });
+
+    // --- TEST: PlayerDeath ---
+    events.on("PlayerDeath", function(event) {
+        var p = event.getPlayer();
+        console.log("[TEST] PlayerDeath: " + p.getName());
+        // Activar keepInventory para el test
+        event.setKeepInventory(true);
+        p.sendMessage("§c[TEST] Moriste — keepInventory activado. PlayerDeath OK");
+    });
+
+    // --- TEST: PlayerRespawn ---
+    events.on("PlayerRespawn", function(event) {
+        var p = event.getPlayer();
+        console.log("[TEST] PlayerRespawn: " + p.getName() + " pos=" + event.getX().toFixed(1) + "," + event.getY().toFixed(1) + "," + event.getZ().toFixed(1));
+        p.sendTitle("§aRespawn", "§7PlayerRespawn OK");
+    });
+
+    // --- TEST: PlayerFoodLoss ---
+    events.on("PlayerFoodLoss", function(event) {
+        var p = event.getPlayer();
+        console.log("[TEST] PlayerFoodLoss: " + p.getName() + " de=" + event.getFrom() + " a=" + event.getTo());
+        p.sendTitle("§6Hambre", "§fde " + event.getFrom() + " a " + event.getTo() + " — PlayerFoodLoss OK");
+    });
+
+    // --- TEST: PlayerExperienceGain ---
+    events.on("PlayerExperienceGain", function(event) {
+        var p = event.getPlayer();
+        console.log("[TEST] PlayerExperienceGain: " + p.getName() + " xp=" + event.getAmount());
+        p.sendTitle("§bXP ganada", "§f+" + event.getAmount() + " — PlayerExperienceGain OK");
+    });
+
+    // --- TEST: PlayerTeleport ---
+    events.on("PlayerTeleport", function(event) {
+        var p = event.getPlayer();
+        console.log("[TEST] PlayerTeleport: " + p.getName() + " a=" + event.getX().toFixed(1) + "," + event.getY().toFixed(1) + "," + event.getZ().toFixed(1));
+        p.sendTitle("§dTeleport", "§7PlayerTeleport OK");
+    });
+
+    // --- TEST: PlayerAttackEntity ---
+    events.on("PlayerAttackEntity", function(event) {
+        var p = event.getPlayer();
+        var crit = event.isCritical();
+        console.log("[TEST] PlayerAttackEntity: " + p.getName() + " fuerza=" + event.getForce().toFixed(2) + " critico=" + crit);
+        p.sendTitle(crit ? "§c¡Crítico!" : "§eAtaque", "§ffuerza=" + event.getForce().toFixed(2) + " — PlayerAttackEntity OK");
+    });
+
+    // --- TEST: PlayerItemUse ---
+    events.on("PlayerItemUse", function(event) {
+        var p = event.getPlayer();
+        console.log("[TEST] PlayerItemUse: " + p.getName());
+        p.sendTitle("§aItem usado", "§7PlayerItemUse OK");
+    });
+
+    // --- TEST: PlayerItemDrop ---
+    events.on("PlayerItemDrop", function(event) {
+        var p = event.getPlayer();
+        console.log("[TEST] PlayerItemDrop: " + p.getName() + " cantidad=" + event.getItemCount());
+        p.sendTitle("§eItem tirado", "§f" + event.getItemCount() + "x — PlayerItemDrop OK");
+    });
+
+    // --- TEST: PlayerItemPickup ---
+    events.on("PlayerItemPickup", function(event) {
+        var p = event.getPlayer();
+        console.log("[TEST] PlayerItemPickup: " + p.getName() + " cantidad=" + event.getItemCount());
+        p.sendTitle("§aItem recogido", "§f" + event.getItemCount() + "x — PlayerItemPickup OK");
     });
 
     // Log para confirmar que el plugin arrancó correctamente

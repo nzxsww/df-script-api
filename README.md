@@ -14,19 +14,19 @@ Full plugin developer docs:
 
 For more information, guides and updates, the GitHub Pages site contains everything in one place.
 
-## ⬇️ Releases
+## Releases
 
 Download prebuilt binaries from GitHub Releases:
 
 ➡️ https://github.com/nzxsww/df-script-api/releases
 
-## ⚠️ Compatibility
+## Compatibility
 
 - Minecraft Bedrock **1.21.130 – 1.21.132** (protocol 898)
 - Dragonfly v0.10.10
 - gophertunnel v1.52.2
 
-## 🔧 Core Libraries
+## Core Libraries
 
 - **Dragonfly** — https://github.com/df-mc/dragonfly
 - **Goja (JS engine)** — https://github.com/dop251/goja

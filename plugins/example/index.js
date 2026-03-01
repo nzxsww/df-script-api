@@ -327,18 +327,18 @@ function onEnable() {
         var x = player.getX();
         var y = player.getY();
         var z = player.getZ();
-        world.spawnLightning(x, y, z);
+        world.spawnEntity("lightning", x, y, z);
         player.sendMessage("§e⚡ Rayo invocado!");
-        console.log("[TEST] spawnLightning en " + x + "," + y + "," + z);
+        console.log("[TEST] spawnEntity lightning en " + x + "," + y + "," + z);
     });
 
     commands.register("testtnt", "Coloca un TNT cerca de ti (4s mecha)", function(player, args) {
         var x = player.getX() + 3;
         var y = player.getY();
         var z = player.getZ();
-        world.spawnTNT(x, y, z, 4);
+        world.spawnEntity("tnt", x, y, z, { fuse: 4 });
         player.sendMessage("§c💣 TNT activado a 3 bloques! (4 segundos)");
-        console.log("[TEST] spawnTNT en " + x + "," + y + "," + z);
+        console.log("[TEST] spawnEntity tnt en " + x + "," + y + "," + z);
     });
 
     commands.register("testtexto", "Crea un texto flotante en tu posición", function(player, args) {
@@ -346,17 +346,17 @@ function onEnable() {
         var y = player.getY() + 2;
         var z = player.getZ();
         var texto = args.length > 0 ? args.join(" ") : "§a§lTexto flotante!";
-        world.spawnText(x, y, z, texto);
+        world.spawnEntity("text", x, y, z, { text: texto });
         player.sendMessage("§aTexto flotante creado!");
-        console.log("[TEST] spawnText '" + texto + "' en " + x + "," + y + "," + z);
+        console.log("[TEST] spawnEntity text '" + texto + "' en " + x + "," + y + "," + z);
     });
 
     commands.register("testxp", "Genera orbes de XP en tu posición", function(player, args) {
         var cantidad = args.length > 0 ? parseInt(args[0]) : 100;
         if (isNaN(cantidad) || cantidad < 1) cantidad = 100;
-        world.spawnExperienceOrb(player.getX(), player.getY(), player.getZ(), cantidad);
+        world.spawnEntity("experience_orb", player.getX(), player.getY(), player.getZ(), { amount: cantidad });
         player.sendMessage("§b✨ " + cantidad + " XP generados!");
-        console.log("[TEST] spawnExperienceOrb " + cantidad + " en pos del jugador");
+        console.log("[TEST] spawnEntity experience_orb " + cantidad + " en pos del jugador");
     });
 
     commands.register("testparticula", "Genera partículas en tu posición", function(player, args) {

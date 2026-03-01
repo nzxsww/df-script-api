@@ -69,6 +69,33 @@ world.spawnExperienceOrb(100, 64, 100, 50);
 
 ## Entities
 
+### Spawning entities
+
+| Method | Description |
+|---|---|
+| `spawnEntity(type, x, y, z)` | Spawn an entity at the given position |
+| `spawnEntity(type, x, y, z, options)` | Spawn an entity with additional options |
+
+**Available types and options:**
+
+| Type | Options | Description |
+|---|---|---|
+| `"lightning"` | — | Lightning bolt |
+| `"tnt"` | `{ fuse: 4 }` | Primed TNT. `fuse` = seconds until explosion (default: 4) |
+| `"text"` | `{ text: "§aHello" }` | Floating text |
+| `"experience_orb"` | `{ amount: 50 }` | Experience orb with XP amount (default: 1) |
+| `"item"` | `{ item: "minecraft:diamond", count: 1 }` | Item on the ground |
+
+```js
+world.spawnEntity("lightning", x, y, z);
+world.spawnEntity("tnt", x, y, z, { fuse: 4 });
+world.spawnEntity("text", x, y, z, { text: "§a§lWelcome!" });
+world.spawnEntity("experience_orb", x, y, z, { amount: 100 });
+world.spawnEntity("item", x, y, z, { item: "minecraft:diamond", count: 5 });
+```
+
+### Getting and removing entities
+
 | Method | Returns | Description |
 |---|---|---|
 | `getEntities()` | `entity[]` | Get all entities in the world |

@@ -69,6 +69,33 @@ world.spawnExperienceOrb(100, 64, 100, 50);
 
 ## Entidades
 
+### Invocar entidades
+
+| Método | Descripción |
+|---|---|
+| `spawnEntity(tipo, x, y, z)` | Invocar una entidad en la posición dada |
+| `spawnEntity(tipo, x, y, z, opciones)` | Invocar una entidad con opciones adicionales |
+
+**Tipos disponibles y sus opciones:**
+
+| Tipo | Opciones | Descripción |
+|---|---|---|
+| `"lightning"` | — | Rayo |
+| `"tnt"` | `{ fuse: 4 }` | TNT activado. `fuse` = segundos hasta explotar (default: 4) |
+| `"text"` | `{ text: "§aHola" }` | Texto flotante |
+| `"experience_orb"` | `{ amount: 50 }` | Orbe de experiencia con cantidad de XP (default: 1) |
+| `"item"` | `{ item: "minecraft:diamond", count: 1 }` | Item en el suelo |
+
+```js
+world.spawnEntity("lightning", x, y, z);
+world.spawnEntity("tnt", x, y, z, { fuse: 4 });
+world.spawnEntity("text", x, y, z, { text: "§a§lBienvenido!" });
+world.spawnEntity("experience_orb", x, y, z, { amount: 100 });
+world.spawnEntity("item", x, y, z, { item: "minecraft:diamond", count: 5 });
+```
+
+### Obtener y remover entidades
+
 | Método | Retorna | Descripción |
 |---|---|---|
 | `getEntities()` | `entity[]` | Obtener todas las entidades del mundo |

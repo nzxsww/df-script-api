@@ -1142,10 +1142,7 @@ main: index.js`,
     if (typeof world.setBlock !== "function") throw new Error("world.setBlock no es función");
     if (typeof world.getBlock !== "function") throw new Error("world.getBlock no es función");
     if (typeof world.getHighestBlock !== "function") throw new Error("world.getHighestBlock no es función");
-    if (typeof world.spawnLightning !== "function") throw new Error("world.spawnLightning no es función");
-    if (typeof world.spawnTNT !== "function") throw new Error("world.spawnTNT no es función");
-    if (typeof world.spawnText !== "function") throw new Error("world.spawnText no es función");
-    if (typeof world.spawnExperienceOrb !== "function") throw new Error("world.spawnExperienceOrb no es función");
+    if (typeof world.spawnEntity !== "function") throw new Error("world.spawnEntity no es función");
     if (typeof world.spawnParticle !== "function") throw new Error("world.spawnParticle no es función");
     if (typeof world.getPlayers !== "function") throw new Error("world.getPlayers no es función");
     if (typeof world.getPlayerCount !== "function") throw new Error("world.getPlayerCount no es función");
@@ -1230,14 +1227,14 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	plugins[0].OnEnable()
 }
 
-func TestLoader_World_SpawnLightning_NoServer_NoError(t *testing.T) {
+func TestLoader_World_SpawnEntity_Lightning_NoServer_NoError(t *testing.T) {
 	dir := t.TempDir()
 	writePlugin(t, dir,
 		`name: WorldLightningPlugin
 version: 1.0.0
 main: index.js`,
 		`function onEnable() {
-    world.spawnLightning(0, 64, 0);
+    world.spawnEntity("lightning", 0, 64, 0);
 }
 module = { onEnable: onEnable, onDisable: function() {} };`,
 	)
@@ -1249,20 +1246,20 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("world.spawnLightning sin servidor causó panic: %v", r)
+			t.Errorf("world.spawnEntity lightning sin servidor causó panic: %v", r)
 		}
 	}()
 	plugins[0].OnEnable()
 }
 
-func TestLoader_World_SpawnTNT_NoServer_NoError(t *testing.T) {
+func TestLoader_World_SpawnEntity_TNT_NoServer_NoError(t *testing.T) {
 	dir := t.TempDir()
 	writePlugin(t, dir,
 		`name: WorldTNTPlugin
 version: 1.0.0
 main: index.js`,
 		`function onEnable() {
-    world.spawnTNT(0, 64, 0, 4);
+    world.spawnEntity("tnt", 0, 64, 0, { fuse: 4 });
 }
 module = { onEnable: onEnable, onDisable: function() {} };`,
 	)
@@ -1274,20 +1271,20 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("world.spawnTNT sin servidor causó panic: %v", r)
+			t.Errorf("world.spawnEntity tnt sin servidor causó panic: %v", r)
 		}
 	}()
 	plugins[0].OnEnable()
 }
 
-func TestLoader_World_SpawnText_NoServer_NoError(t *testing.T) {
+func TestLoader_World_SpawnEntity_Text_NoServer_NoError(t *testing.T) {
 	dir := t.TempDir()
 	writePlugin(t, dir,
 		`name: WorldTextPlugin
 version: 1.0.0
 main: index.js`,
 		`function onEnable() {
-    world.spawnText(0, 64, 0, "§aHola Mundo");
+    world.spawnEntity("text", 0, 64, 0, { text: "§aHola Mundo" });
 }
 module = { onEnable: onEnable, onDisable: function() {} };`,
 	)
@@ -1299,20 +1296,20 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("world.spawnText sin servidor causó panic: %v", r)
+			t.Errorf("world.spawnEntity text sin servidor causó panic: %v", r)
 		}
 	}()
 	plugins[0].OnEnable()
 }
 
-func TestLoader_World_SpawnExperienceOrb_NoServer_NoError(t *testing.T) {
+func TestLoader_World_SpawnEntity_ExperienceOrb_NoServer_NoError(t *testing.T) {
 	dir := t.TempDir()
 	writePlugin(t, dir,
 		`name: WorldXPPlugin
 version: 1.0.0
 main: index.js`,
 		`function onEnable() {
-    world.spawnExperienceOrb(0, 64, 0, 10);
+    world.spawnEntity("experience_orb", 0, 64, 0, { amount: 10 });
 }
 module = { onEnable: onEnable, onDisable: function() {} };`,
 	)
@@ -1324,7 +1321,84 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("world.spawnExperienceOrb sin servidor causó panic: %v", r)
+			t.Errorf("world.spawnEntity experience_orb sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_SpawnEntity_Item_NoServer_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldItemPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    world.spawnEntity("item", 0, 64, 0, { item: "minecraft:diamond", count: 5 });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.spawnEntity item sin servidor causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_SpawnEntity_Unknown_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldUnknownEntityPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    // tipo desconocido — solo imprime warning, no panic
+    world.spawnEntity("entidad_que_no_existe", 0, 64, 0);
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.spawnEntity tipo desconocido causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_SpawnEntity_NoOptions_NoError(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: WorldNoOptsPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    // sin opciones — debe usar defaults
+    world.spawnEntity("lightning", 0, 64, 0);
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.spawnEntity sin opciones causó panic: %v", r)
 		}
 	}()
 	plugins[0].OnEnable()

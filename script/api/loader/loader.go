@@ -1211,52 +1211,77 @@ func (l *Loader) registerWorld(vm *goja.Runtime, p *ScriptPlugin) {
 			})
 		},
 
-		// --- Entidades ---
-
-		// spawnLightning(x, y, z) — invoca un rayo en la posición dada.
-		"spawnLightning": func(x, y, z float64) {
+		// spawnEntity(tipo, x, y, z, opciones) — invoca una entidad en la posición dada.
+		// tipo: "lightning", "tnt", "text", "experience_orb", "item"
+		// opciones (opcional): objeto JS con parámetros adicionales según el tipo:
+		//   tnt:            { fuse: 4 }          — segundos de mecha (default: 4)
+		//   text:           { text: "§aHola" }   — texto a mostrar
+		//   experience_orb: { amount: 50 }        — cantidad de XP (default: 1)
+		//   item:           { item: "minecraft:diamond", count: 1 }
+		"spawnEntity": func(entityType string, x, y, z float64, opts goja.Value) {
 			if p.srv == nil {
 				return
 			}
 			pos := mgl64.Vec3{x, y, z}
-			p.srv.World().Exec(func(tx *world.Tx) {
-				tx.AddEntity(entity.NewLightning(world.EntitySpawnOpts{Position: pos}))
-			})
-		},
+			spawnOpts := world.EntitySpawnOpts{Position: pos}
 
-		// spawnTNT(x, y, z, fuse) — invoca un TNT en la posición dada.
-		// fuse: tiempo en segundos antes de explotar (ej: 4)
-		"spawnTNT": func(x, y, z float64, fuseSecs float64) {
-			if p.srv == nil {
-				return
+			// Extraer opciones del objeto JS si se proveyeron
+			var optsMap map[string]goja.Value
+			if opts != nil && !goja.IsUndefined(opts) && !goja.IsNull(opts) {
+				if obj, ok := opts.(*goja.Object); ok {
+					optsMap = make(map[string]goja.Value)
+					for _, key := range obj.Keys() {
+						optsMap[key] = obj.Get(key)
+					}
+				}
 			}
-			pos := mgl64.Vec3{x, y, z}
-			fuse := time.Duration(fuseSecs * float64(time.Second))
-			p.srv.World().Exec(func(tx *world.Tx) {
-				tx.AddEntity(entity.NewTNT(world.EntitySpawnOpts{Position: pos}, fuse))
-			})
-		},
 
-		// spawnText(x, y, z, texto) — crea un texto flotante en la posición dada.
-		"spawnText": func(x, y, z float64, text string) {
-			if p.srv == nil {
-				return
+			getFloat := func(key string, def float64) float64 {
+				if v, ok := optsMap[key]; ok {
+					return v.ToFloat()
+				}
+				return def
 			}
-			pos := mgl64.Vec3{x, y, z}
-			p.srv.World().Exec(func(tx *world.Tx) {
-				tx.AddEntity(entity.NewText(text, pos))
-			})
-		},
+			getString := func(key string, def string) string {
+				if v, ok := optsMap[key]; ok {
+					return v.String()
+				}
+				return def
+			}
+			getInt := func(key string, def int) int {
+				if v, ok := optsMap[key]; ok {
+					return int(v.ToInteger())
+				}
+				return def
+			}
 
-		// spawnExperienceOrb(x, y, z, cantidad) — genera un orbe de experiencia.
-		"spawnExperienceOrb": func(x, y, z float64, amount int) {
-			if p.srv == nil {
-				return
-			}
-			pos := mgl64.Vec3{x, y, z}
 			p.srv.World().Exec(func(tx *world.Tx) {
-				for _, orb := range entity.NewExperienceOrbs(pos, amount) {
-					tx.AddEntity(orb)
+				switch entityType {
+				case "lightning":
+					tx.AddEntity(entity.NewLightning(spawnOpts))
+				case "tnt":
+					fuse := time.Duration(getFloat("fuse", 4) * float64(time.Second))
+					tx.AddEntity(entity.NewTNT(spawnOpts, fuse))
+				case "text":
+					text := getString("text", "")
+					tx.AddEntity(entity.NewText(text, pos))
+				case "experience_orb":
+					amount := getInt("amount", 1)
+					for _, orb := range entity.NewExperienceOrbs(pos, amount) {
+						tx.AddEntity(orb)
+					}
+				case "item":
+					itemName := getString("item", "minecraft:stone")
+					count := getInt("count", 1)
+					it, ok := world.ItemByName(itemName, 0)
+					if !ok {
+						fmt.Printf("[%s] spawnEntity: item desconocido '%s'\n", p.name, itemName)
+						return
+					}
+					stack := dfitem.NewStack(it, count)
+					tx.AddEntity(entity.NewItem(spawnOpts, stack))
+				default:
+					fmt.Printf("[%s] spawnEntity: tipo desconocido '%s'\n", p.name, entityType)
 				}
 			})
 		},

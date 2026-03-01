@@ -1344,13 +1344,39 @@ func makeListener(p *ScriptPlugin, executor event.EventExecutor) event.Registere
 	}
 }
 
+// playerProvider es la interfaz que implementan todos los eventos de jugador.
+type playerProvider interface {
+	GetPlayer() *dfplayer.Player
+}
+
+// makeListenerWithTx construye un RegisteredListener que actualiza world/server
+// con el tx del jugador antes de ejecutar el callback JS.
+// Esto evita deadlocks cuando el JS llama world.getEntities() desde un evento.
+func makeListenerWithTx(p *ScriptPlugin, vm *goja.Runtime, executor event.EventExecutor) event.RegisteredListener {
+	return event.RegisteredListener{
+		Listener: p,
+		Executor: func(e event.Event) {
+			if provider, ok := e.(playerProvider); ok {
+				if pl := provider.GetPlayer(); pl != nil {
+					tx := pl.Tx()
+					vm.Set("world", command.BuildWorldMapFromTx(vm, p.srv, tx))
+					vm.Set("server", command.BuildServerMapFromTx(vm, p.srv, tx))
+				}
+			}
+			executor(e)
+		},
+		Priority: event.PriorityNormal,
+		Plugin:   p,
+	}
+}
+
 // registerEventHandler conecta un callback JS al sistema de eventos para el evento dado.
 func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, p *ScriptPlugin) {
 	vm := p.vm
 
 	switch eventName {
 	case "PlayerJoin":
-		evplayer.PlayerJoinEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerJoinEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerJoinEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value {
@@ -1374,7 +1400,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerQuit":
-		evplayer.PlayerQuitEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerQuitEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerQuitEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value {
@@ -1398,7 +1424,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerChat":
-		evplayer.PlayerChatEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerChatEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerChatEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value {
@@ -1422,7 +1448,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerMove":
-		evplayer.PlayerMoveEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerMoveEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerMoveEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value {
@@ -1446,7 +1472,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "BlockBreak":
-		evplayer.BlockBreakEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.BlockBreakEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.BlockBreakEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value {
@@ -1467,7 +1493,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "BlockPlace":
-		evplayer.BlockPlaceEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.BlockPlaceEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.BlockPlaceEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value {
@@ -1488,7 +1514,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerJump":
-		evplayer.PlayerJumpEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerJumpEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerJumpEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1500,7 +1526,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerDeath":
-		evplayer.PlayerDeathEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerDeathEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerDeathEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1514,7 +1540,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerRespawn":
-		evplayer.PlayerRespawnEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerRespawnEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerRespawnEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1530,7 +1556,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerHurt":
-		evplayer.PlayerHurtEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerHurtEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerHurtEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1544,7 +1570,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerHeal":
-		evplayer.PlayerHealEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerHealEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerHealEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1558,7 +1584,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerExperienceGain":
-		evplayer.PlayerExperienceGainEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerExperienceGainEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerExperienceGainEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1572,7 +1598,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerToggleSprint":
-		evplayer.PlayerToggleSprintEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerToggleSprintEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerToggleSprintEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1585,7 +1611,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerToggleSneak":
-		evplayer.PlayerToggleSneakEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerToggleSneakEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerToggleSneakEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1598,7 +1624,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerItemDrop":
-		evplayer.PlayerItemDropEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerItemDropEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerItemDropEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1611,7 +1637,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerItemPickup":
-		evplayer.PlayerItemPickupEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerItemPickupEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerItemPickupEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1624,7 +1650,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerFoodLoss":
-		evplayer.PlayerFoodLossEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerFoodLossEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerFoodLossEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1639,7 +1665,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerTeleport":
-		evplayer.PlayerTeleportEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerTeleportEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerTeleportEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1655,7 +1681,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerAttackEntity":
-		evplayer.PlayerAttackEntityEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerAttackEntityEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerAttackEntityEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))
@@ -1669,7 +1695,7 @@ func (l *Loader) registerEventHandler(eventName string, callback goja.Callable, 
 		}))
 
 	case "PlayerItemUse":
-		evplayer.PlayerItemUseEventHandlers.Register(makeListener(p, func(e event.Event) {
+		evplayer.PlayerItemUseEventHandlers.Register(makeListenerWithTx(p, vm, func(e event.Event) {
 			ev := e.(*evplayer.PlayerItemUseEvent)
 			jsEvent := vm.NewObject()
 			jsEvent.Set("getPlayer", vm.ToValue(func() goja.Value { return vm.ToValue(newPlayerWrapper(ev.GetPlayer())) }))

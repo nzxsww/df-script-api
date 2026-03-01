@@ -409,8 +409,8 @@ func MakeJSCallback(vm *goja.Runtime, callback goja.Callable, pluginName string,
 		}
 
 		// Exponer server y world con el tx activo (sin deadlock)
-		vm.Set("server", buildServerMap(vm, srv, tx))
-		vm.Set("world", buildWorldMap(vm, srv, tx))
+		vm.Set("server", BuildServerMapFromTx(vm, srv, tx))
+		vm.Set("world", BuildWorldMapFromTx(vm, srv, tx))
 
 		if _, err := callback(goja.Undefined(), jsPlayer, jsArgs); err != nil {
 			fmt.Printf("[%s] Error en handler de comando: %v\n", pluginName, err)
@@ -418,9 +418,9 @@ func MakeJSCallback(vm *goja.Runtime, callback goja.Callable, pluginName string,
 	}
 }
 
-// buildEntityMap construye un mapa JS con métodos para interactuar con una entidad.
+// BuildEntityMap construye un mapa JS con métodos para interactuar con una entidad.
 // Debe mantenerse sincronizado con newEntityWrapper en loader/loader.go.
-func buildEntityMap(e world.Entity, tx *world.Tx) map[string]interface{} {
+func BuildEntityMap(e world.Entity, tx *world.Tx) map[string]interface{} {
 	m := map[string]interface{}{
 		"getUUID": func() string { return e.H().UUID().String() },
 		"getType": func() string { return e.H().Type().EncodeEntity() },
@@ -482,9 +482,9 @@ func buildEntityMap(e world.Entity, tx *world.Tx) map[string]interface{} {
 	return m
 }
 
-// buildWorldMap construye el objeto world usando el tx activo del comando.
-// Esto evita el deadlock al usar world.getEntities() desde comandos.
-func buildWorldMap(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map[string]interface{} {
+// BuildWorldMapFromTx construye el objeto world usando el tx activo.
+// Exportado para ser usado desde loader.go en eventos.
+func BuildWorldMapFromTx(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map[string]interface{} {
 	return map[string]interface{}{
 		// --- Bloques ---
 		"setBlock": func(x, y, z int, blockName string) {
@@ -519,7 +519,7 @@ func buildWorldMap(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map[strin
 			}
 			var entities []interface{}
 			for e := range tx.Entities() {
-				entities = append(entities, buildEntityMap(e, tx))
+				entities = append(entities, BuildEntityMap(e, tx))
 			}
 			return entities
 		},
@@ -532,7 +532,7 @@ func buildWorldMap(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map[strin
 			var entities []interface{}
 			for e := range tx.EntitiesWithin(box) {
 				if e.Position().Sub(center).Len() <= radius {
-					entities = append(entities, buildEntityMap(e, tx))
+					entities = append(entities, BuildEntityMap(e, tx))
 				}
 			}
 			return entities
@@ -645,10 +645,11 @@ func buildWorldMap(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map[strin
 	}
 }
 
-// buildServerMap construye el objeto server usando el tx activo del comando.
+// BuildServerMapFromTx construye el objeto server usando el tx activo.
+// Exportado para ser usado desde loader.go en eventos.
 // Esto evita el deadlock que causaría ExecWorld() al abrir una nueva transacción
 // cuando ya hay una activa (la del comando).
-func buildServerMap(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map[string]interface{} {
+func BuildServerMapFromTx(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map[string]interface{} {
 	return map[string]interface{}{
 		"getPlayers": func() []interface{} {
 			if srv == nil || tx == nil {

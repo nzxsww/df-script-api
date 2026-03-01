@@ -848,7 +848,7 @@ func (l *Loader) registerCommands(vm *goja.Runtime, p *ScriptPlugin) {
 				return goja.Undefined()
 			}
 
-			jsCallback := command.MakeJSCallback(vm, callback, p.name)
+			jsCallback := command.MakeJSCallback(vm, callback, p.name, p.srv)
 			command.Register(name, description, aliases, jsCallback)
 			return goja.Undefined()
 		},

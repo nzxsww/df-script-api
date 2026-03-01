@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/df-mc/dragonfly/server"
 	"github.com/df-mc/dragonfly/server/cmd"
 	"github.com/df-mc/dragonfly/server/entity/effect"
 	dfitem "github.com/df-mc/dragonfly/server/item"
@@ -18,8 +19,8 @@ import (
 	"github.com/go-gl/mathgl/mgl64"
 )
 
-// jsCommandCallback es el tipo del callback JS que recibe el jugador y los args.
-type jsCommandCallback func(player map[string]interface{}, args []string)
+// jsCommandCallback es el tipo del callback JS que recibe el jugador, args y el tx activo.
+type jsCommandCallback func(player map[string]interface{}, args []string, tx *world.Tx)
 
 // registeredCommands guarda los callbacks JS por nombre de comando.
 var (
@@ -58,8 +59,8 @@ func (r jsRunnable) Run(src cmd.Source, o *cmd.Output, tx *world.Tx) {
 	// Construir el wrapper del jugador para exponerlo al JS
 	playerObj := buildPlayerMap(p)
 
-	// Llamar el callback JS
-	callback(playerObj, args)
+	// Llamar el callback JS con el tx activo
+	callback(playerObj, args, tx)
 }
 
 // Register registra un nuevo comando en Dragonfly y guarda su callback JS.
@@ -394,8 +395,9 @@ func effectTypeByName(name string) (effect.LastingType, bool) {
 
 // MakeJSCallback convierte un callable de Goja en un jsCommandCallback de Go.
 // El callback JS recibe: (player, args) donde args es un array JS.
-func MakeJSCallback(vm *goja.Runtime, callback goja.Callable, pluginName string) jsCommandCallback {
-	return func(playerMap map[string]interface{}, args []string) {
+// srv puede ser nil (en tests), en cuyo caso server.getPlayer() retorna null.
+func MakeJSCallback(vm *goja.Runtime, callback goja.Callable, pluginName string, srv *server.Server) jsCommandCallback {
+	return func(playerMap map[string]interface{}, args []string, tx *world.Tx) {
 		jsPlayer := vm.ToValue(playerMap)
 
 		// Convertir []string a array JS
@@ -404,8 +406,94 @@ func MakeJSCallback(vm *goja.Runtime, callback goja.Callable, pluginName string)
 			jsArgs.Set(fmt.Sprintf("%d", i), vm.ToValue(arg))
 		}
 
+		// Exponer server object con acceso al tx activo (sin deadlock)
+		serverObj := buildServerMap(vm, srv, tx)
+		vm.Set("server", serverObj)
+
 		if _, err := callback(goja.Undefined(), jsPlayer, jsArgs); err != nil {
 			fmt.Printf("[%s] Error en handler de comando: %v\n", pluginName, err)
 		}
+	}
+}
+
+// buildServerMap construye el objeto server usando el tx activo del comando.
+// Esto evita el deadlock que causaría ExecWorld() al abrir una nueva transacción
+// cuando ya hay una activa (la del comando).
+func buildServerMap(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map[string]interface{} {
+	return map[string]interface{}{
+		"getPlayers": func() []interface{} {
+			if srv == nil || tx == nil {
+				return []interface{}{}
+			}
+			var players []interface{}
+			for pl := range srv.Players(tx) {
+				players = append(players, buildPlayerMap(pl))
+			}
+			return players
+		},
+		"getPlayerCount": func() int {
+			if srv == nil {
+				return 0
+			}
+			return srv.PlayerCount()
+		},
+		"getMaxPlayers": func() int {
+			if srv == nil {
+				return 0
+			}
+			return srv.MaxPlayerCount()
+		},
+		"getPlayer": func(name string) goja.Value {
+			if srv == nil || tx == nil {
+				return goja.Null()
+			}
+			for pl := range srv.Players(tx) {
+				if pl.Name() == name {
+					return vm.ToValue(buildPlayerMap(pl))
+				}
+			}
+			return goja.Null()
+		},
+		"getPlayerByXUID": func(xuid string) goja.Value {
+			if srv == nil || tx == nil {
+				return goja.Null()
+			}
+			for pl := range srv.Players(tx) {
+				if pl.XUID() == xuid {
+					return vm.ToValue(buildPlayerMap(pl))
+				}
+			}
+			return goja.Null()
+		},
+		"broadcast": func(msg string) {
+			if srv == nil || tx == nil {
+				return
+			}
+			for pl := range srv.Players(tx) {
+				pl.Message(msg)
+			}
+		},
+		"broadcastTitle": func(text, subtitle string) {
+			if srv == nil || tx == nil {
+				return
+			}
+			t := title.New(text).WithSubtitle(subtitle)
+			for pl := range srv.Players(tx) {
+				pl.SendTitle(t)
+			}
+		},
+		"getName": func() string {
+			return ""
+		},
+		"shutdown": func() {
+			if srv == nil {
+				return
+			}
+			go func() {
+				if err := srv.Close(); err != nil {
+					fmt.Printf("[Commands] Error al cerrar servidor: %v\n", err)
+				}
+			}()
+		},
 	}
 }

@@ -3,6 +3,7 @@ package command_test
 import (
 	"testing"
 
+	"github.com/df-mc/dragonfly/server/world"
 	"github.com/nzxsww/dragonfly-script-api/script/api/command"
 )
 
@@ -21,7 +22,7 @@ func TestRegister_NoError(t *testing.T) {
 	}()
 
 	called := false
-	command.Register("testcmd1", "Comando de prueba", nil, func(player map[string]interface{}, args []string) {
+	command.Register("testcmd1", "Comando de prueba", nil, func(player map[string]interface{}, args []string, tx *world.Tx) {
 		called = true
 	})
 	_ = called // el callback se llama cuando el jugador ejecuta el comando, no aquí
@@ -34,7 +35,7 @@ func TestRegister_WithAliases_NoError(t *testing.T) {
 		}
 	}()
 
-	command.Register("testcmd2", "Comando con aliases", []string{"tc2", "t2"}, func(player map[string]interface{}, args []string) {})
+	command.Register("testcmd2", "Comando con aliases", []string{"tc2", "t2"}, func(player map[string]interface{}, args []string, tx *world.Tx) {})
 }
 
 func TestRegister_EmptyDescription_NoError(t *testing.T) {
@@ -44,18 +45,18 @@ func TestRegister_EmptyDescription_NoError(t *testing.T) {
 		}
 	}()
 
-	command.Register("testcmd3", "", nil, func(player map[string]interface{}, args []string) {})
+	command.Register("testcmd3", "", nil, func(player map[string]interface{}, args []string, tx *world.Tx) {})
 }
 
 func TestRegister_CallbackReceivesArgs(t *testing.T) {
 	// Verificamos que el callback recibe los argumentos correctos cuando se invoca
 	var receivedArgs []string
-	cb := func(player map[string]interface{}, args []string) {
+	cb := func(player map[string]interface{}, args []string, tx *world.Tx) {
 		receivedArgs = args
 	}
 
 	// Llamar el callback directamente (simular ejecución de comando)
-	cb(nil, []string{"hola", "mundo"})
+	cb(nil, []string{"hola", "mundo"}, nil)
 
 	if len(receivedArgs) != 2 {
 		t.Fatalf("expected 2 args, got %d", len(receivedArgs))
@@ -80,10 +81,10 @@ func TestMakeJSCallback_NotNil(t *testing.T) {
 
 func TestParseArgs_EmptyString(t *testing.T) {
 	var receivedArgs []string
-	cb := func(player map[string]interface{}, args []string) {
+	cb := func(player map[string]interface{}, args []string, tx *world.Tx) {
 		receivedArgs = args
 	}
-	cb(nil, []string{})
+	cb(nil, []string{}, nil)
 	if len(receivedArgs) != 0 {
 		t.Errorf("expected 0 args para string vacío, got %d", len(receivedArgs))
 	}
@@ -91,10 +92,10 @@ func TestParseArgs_EmptyString(t *testing.T) {
 
 func TestParseArgs_SingleArg(t *testing.T) {
 	var receivedArgs []string
-	cb := func(player map[string]interface{}, args []string) {
+	cb := func(player map[string]interface{}, args []string, tx *world.Tx) {
 		receivedArgs = args
 	}
-	cb(nil, []string{"spawn"})
+	cb(nil, []string{"spawn"}, nil)
 	if len(receivedArgs) != 1 || receivedArgs[0] != "spawn" {
 		t.Errorf("expected ['spawn'], got %v", receivedArgs)
 	}
@@ -102,10 +103,10 @@ func TestParseArgs_SingleArg(t *testing.T) {
 
 func TestParseArgs_MultipleArgs(t *testing.T) {
 	var receivedArgs []string
-	cb := func(player map[string]interface{}, args []string) {
+	cb := func(player map[string]interface{}, args []string, tx *world.Tx) {
 		receivedArgs = args
 	}
-	cb(nil, []string{"tp", "Steve", "100", "64", "200"})
+	cb(nil, []string{"tp", "Steve", "100", "64", "200"}, nil)
 	if len(receivedArgs) != 5 {
 		t.Fatalf("expected 5 args, got %d: %v", len(receivedArgs), receivedArgs)
 	}

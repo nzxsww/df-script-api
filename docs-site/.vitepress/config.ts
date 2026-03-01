@@ -39,6 +39,7 @@ export default defineConfig({
             items: [
               { text: 'Eventos', link: '/api/events' },
               { text: 'Objeto Player', link: '/api/player' },
+              { text: 'Mundo (World)', link: '/api/world' },
               { text: 'Comandos', link: '/api/commands' },
               { text: 'Configuración YAML', link: '/api/config' },
               { text: 'Timers', link: '/api/timers' },
@@ -96,6 +97,7 @@ export default defineConfig({
             items: [
               { text: 'Events', link: '/en/api/events' },
               { text: 'Player Object', link: '/en/api/player' },
+              { text: 'World', link: '/en/api/world' },
               { text: 'Commands', link: '/en/api/commands' },
               { text: 'YAML Config', link: '/en/api/config' },
               { text: 'Timers', link: '/en/api/timers' },

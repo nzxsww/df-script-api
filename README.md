@@ -12,6 +12,8 @@ Full plugin developer docs:
 
 ➡️ **https://nzxsww.github.io/df-script-api/**
 
+For more information, guides and updates, the GitHub Pages site contains everything in one place.
+
 ## ⬇️ Releases
 
 Download prebuilt binaries from GitHub Releases:

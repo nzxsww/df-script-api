@@ -6,7 +6,7 @@ export default defineConfig({
   base: '/df-script-api/',
 
   head: [
-    ['link', { rel: 'icon', href: '/favicon.ico' }],
+    ['link', { rel: 'icon', href: '/df-script-api/favicon.ico' }],
   ],
 
   locales: {

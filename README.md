@@ -8,7 +8,7 @@ JavaScript plugin scripting engine for **Dragonfly** (Minecraft Bedrock). Build 
 
 ## 📘 Developer Documentation
 
-Full plugin developer docs:
+Full plugin developer docs (available in Spanish and English):
 
 - https://nzxsww.github.io/df-script-api/
 

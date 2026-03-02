@@ -826,41 +826,40 @@ function onEnable() {
 
     // === Scoreboard Live con condiciones ===
     // Se actualiza cada 100ms mostrando coords, vida, hambre y modo de juego.
-    // El callback recibe un sb fresco en cada tick — usa setLines() para reemplazar
-    // todo el contenido limpio. Las líneas cambian según el gamemode del jugador.
-    // Nota: server.getPlayers() abre su propia transacción internamente (seguro desde timers).
+    // El callback recibe (sb, player) — un board fresco y el jugador — se llama
+    // una vez por cada jugador registrado en el live. NO usar server.getPlayers()
+    // desde el callback — causaría un deadlock de transacción (regla #13 del AGENTS).
 
-    liveHUD = scoreboard.createLive("§6§lExamplePlugin", function(sb) {
-        var jugadores = server.getPlayers();
-        for (var i = 0; i < jugadores.length; i++) {
-            var p = jugadores[i];
-            var lines = [
-                "§7Jugador: §f" + p.getName(),
-                "§7Vida: §c" + Math.floor(p.getHealth()) + "§7/§c" + Math.floor(p.getMaxHealth()),
-                "§7Hambre: §e" + p.getFoodLevel() + "§7/§e20",
-                "§7Coords: §b" + Math.floor(p.getX()) + " §7/ §b" + Math.floor(p.getY()) + " §7/ §b" + Math.floor(p.getZ()),
-                ""
-            ];
+    // El callback recibe (sb, player) — un scoreboard fresco y el jugador específico.
+    // NO usar server.getPlayers() aquí — causaría un deadlock de transacción.
+    // Usar directamente el player recibido para leer health, coords, gamemode, etc.
+    liveHUD = scoreboard.createLive("§6§lExamplePlugin", function(sb, player) {
+        var lines = [
+            "§7Jugador: §f" + player.getName(),
+            "§7Vida: §c" + Math.floor(player.getHealth()) + "§7/§c" + Math.floor(player.getMaxHealth()),
+            "§7Hambre: §e" + player.getFoodLevel() + "§7/§e20",
+            "§7Coords: §b" + Math.floor(player.getX()) + " §7/ §b" + Math.floor(player.getY()) + " §7/ §b" + Math.floor(player.getZ()),
+            ""
+        ];
 
-            // Líneas condicionales según el gamemode
-            var gm = p.getGameMode();
-            if (gm === "creative") {
-                lines.push("§bModo: §3Creativo");
-                lines.push("§7Vuelo: " + (p.isFlying() ? "§aActivo" : "§cInactivo"));
-            } else if (gm === "survival") {
-                lines.push("§aModo: §2Supervivencia");
-                lines.push("§7Exp: §a" + p.getExperienceLevel() + " §7niveles");
-            } else if (gm === "adventure") {
-                lines.push("§eModo: §6Aventura");
-            } else if (gm === "spectator") {
-                lines.push("§7Modo: §8Espectador");
-            }
-
-            lines.push("");
-            lines.push("§7play.miservidor.com");
-
-            sb.setLines(lines);
+        // Líneas condicionales según el gamemode
+        var gm = player.getGameMode();
+        if (gm === "creative") {
+            lines.push("§bModo: §3Creativo");
+            lines.push("§7Vuelo: " + (player.isFlying() ? "§aActivo" : "§cInactivo"));
+        } else if (gm === "survival") {
+            lines.push("§aModo: §2Supervivencia");
+            lines.push("§7Exp: §a" + player.getExperienceLevel() + " §7niveles");
+        } else if (gm === "adventure") {
+            lines.push("§eModo: §6Aventura");
+        } else if (gm === "spectator") {
+            lines.push("§7Modo: §8Espectador");
         }
+
+        lines.push("");
+        lines.push("§7play.miservidor.com");
+
+        sb.setLines(lines);
     }, 100); // actualizar cada 100ms para coords fluidas
 
     // Agregar jugadores al live al entrar, sacarlos al salir

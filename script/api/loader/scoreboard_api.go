@@ -133,7 +133,11 @@ func (l *Loader) registerScoreboardAPI(vm *goja.Runtime, p *ScriptPlugin) {
 				pluginName: p.name,
 			}
 
-			// Goroutine que hace el tick y reenvía a los jugadores asignados
+			// Goroutine que hace el tick y reenvía a los jugadores asignados.
+			// IMPORTANTE: el callback JS se llama UNA VEZ POR JUGADOR con (sb, playerWrapper).
+			// El plugin NO debe llamar server.getPlayers() desde el callback — usar el
+			// playerWrapper recibido directamente. Leer p.Health(), p.Position(), etc. es
+			// seguro sin Tx porque son valores en memoria del jugador.
 			go func() {
 				for {
 					select {
@@ -141,19 +145,21 @@ func (l *Loader) registerScoreboardAPI(vm *goja.Runtime, p *ScriptPlugin) {
 						live.ticker.Stop()
 						return
 					case <-live.ticker.C:
-						// Crear un scoreboard fresco en cada tick
-						freshBoard := scoreboard.New(live.title)
-						sbWrapper := vm.ToValue(newScoreboardWrapper(freshBoard))
-
-						// Llamar al callback JS con el scoreboard fresco
-						if _, err := live.updateFn(goja.Undefined(), sbWrapper); err != nil {
-							fmt.Printf("[%s] scoreboard.createLive: error en callback: %v\n", live.pluginName, err)
-							continue
-						}
-
-						// Reenviar a todos los jugadores asignados
 						live.players.Range(func(_, v interface{}) bool {
 							pl := v.(*dfplayer.Player)
+
+							// Crear un scoreboard fresco por jugador en cada tick
+							freshBoard := scoreboard.New(live.title)
+							sbWrapper := vm.ToValue(newScoreboardWrapper(freshBoard))
+							playerWrapper := vm.ToValue(newPlayerWrapper(pl))
+
+							// Llamar al callback JS con (sb, player)
+							if _, err := live.updateFn(goja.Undefined(), sbWrapper, playerWrapper); err != nil {
+								fmt.Printf("[%s] scoreboard.createLive: error en callback: %v\n", live.pluginName, err)
+								return true
+							}
+
+							// Enviar el scoreboard actualizado al jugador
 							pl.SendScoreboard(freshBoard)
 							return true
 						})

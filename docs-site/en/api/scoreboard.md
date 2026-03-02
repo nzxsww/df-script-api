@@ -112,11 +112,28 @@ events.on("PlayerQuit", function(event) {
 The Live Scoreboard **auto-updates** on a defined interval. On each tick, the callback receives a fresh scoreboard to fill in, which is then sent to all assigned players.
 
 ```js
-var live = scoreboard.createLive("§aMy Server", function(sb) {
-    sb.setLine(0, "§fPlayers: §a" + server.getPlayerCount());
-    sb.setLine(1, "§fMode: §eLobby");
-    sb.setLine(2, "");
-    sb.setLine(3, "§7play.myserver.com");
+var live = scoreboard.createLive("§aMy Server", function(sb, player) {
+    var lines = [
+        "§7Player: §f" + player.getName(),
+        "§7Health: §c" + Math.floor(player.getHealth()) + "§7/§c" + Math.floor(player.getMaxHealth()),
+        "§7Coords: §b" + Math.floor(player.getX()) + " §7/ §b" + Math.floor(player.getY()) + " §7/ §b" + Math.floor(player.getZ()),
+        ""
+    ];
+
+    var gm = player.getGameMode();
+    if (gm === "creative") {
+        lines.push("§bMode: §3Creative");
+        lines.push("§7Flying: " + (player.isFlying() ? "§aYes" : "§cNo"));
+    } else if (gm === "survival") {
+        lines.push("§aMode: §2Survival");
+        lines.push("§7Exp: §a" + player.getExperienceLevel() + " §7levels");
+    } else {
+        lines.push("§7Mode: §f" + gm);
+    }
+
+    lines.push("");
+    lines.push("§7play.myserver.com");
+    sb.setLines(lines);
 }, 2000); // updates every 2 seconds
 
 events.on("PlayerJoin", function(event) {
@@ -133,7 +150,11 @@ function onDisable() {
 ```
 
 ::: tip
-The minimum interval is **50ms**. For lobby or HUD scoreboards, **1000–5000ms** is recommended to avoid flooding the server with unnecessary packets.
+The minimum interval is **50ms**. For HUDs with smooth coordinates, **100ms** is recommended. For static lobby scoreboards, **1000–5000ms** is enough.
+:::
+
+::: warning
+The live callback receives `(sb, player)` — the scoreboard and the player. It is called **once per player** registered in the live. **Do not use `server.getPlayers()`** inside the callback — it will cause a transaction deadlock and a server panic.
 :::
 
 ### Live Scoreboard methods

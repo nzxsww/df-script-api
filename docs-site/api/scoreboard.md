@@ -112,11 +112,28 @@ events.on("PlayerQuit", function(event) {
 El Live Scoreboard se **auto-actualiza automáticamente** en un intervalo definido. En cada tick, el callback recibe un scoreboard limpio para que el plugin llene las líneas, y luego lo reenvía a todos los jugadores asignados.
 
 ```js
-var live = scoreboard.createLive("§aMi Servidor", function(sb) {
-    sb.setLine(0, "§fJugadores: §a" + server.getPlayerCount());
-    sb.setLine(1, "§fModo: §eLobby");
-    sb.setLine(2, "");
-    sb.setLine(3, "§7play.miservidor.com");
+var live = scoreboard.createLive("§aMi Servidor", function(sb, player) {
+    var lines = [
+        "§7Jugador: §f" + player.getName(),
+        "§7Vida: §c" + Math.floor(player.getHealth()) + "§7/§c" + Math.floor(player.getMaxHealth()),
+        "§7Coords: §b" + Math.floor(player.getX()) + " §7/ §b" + Math.floor(player.getY()) + " §7/ §b" + Math.floor(player.getZ()),
+        ""
+    ];
+
+    var gm = player.getGameMode();
+    if (gm === "creative") {
+        lines.push("§bModo: §3Creativo");
+        lines.push("§7Vuelo: " + (player.isFlying() ? "§aActivo" : "§cInactivo"));
+    } else if (gm === "survival") {
+        lines.push("§aModo: §2Supervivencia");
+        lines.push("§7Exp: §a" + player.getExperienceLevel() + " §7niveles");
+    } else {
+        lines.push("§7Modo: §f" + gm);
+    }
+
+    lines.push("");
+    lines.push("§7play.miservidor.com");
+    sb.setLines(lines);
 }, 2000); // actualiza cada 2 segundos
 
 events.on("PlayerJoin", function(event) {
@@ -133,7 +150,11 @@ function onDisable() {
 ```
 
 ::: tip
-El intervalo mínimo es **50ms**. Para scoreboards de lobby o HUD se recomienda usar **1000–5000ms** para no saturar el servidor con paquetes innecesarios.
+El intervalo mínimo es **50ms**. Para HUDs con coordenadas fluidas se recomienda **100ms**. Para scoreboards de lobby estáticos, **1000–5000ms** es suficiente.
+:::
+
+::: warning
+El callback del live recibe `(sb, player)` — el scoreboard y el jugador. El callback se llama **una vez por cada jugador** registrado en el live. **No usar `server.getPlayers()`** desde dentro del callback — causará un deadlock de transacción y un panic en el servidor.
 :::
 
 ### Métodos del Live Scoreboard

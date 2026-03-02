@@ -522,6 +522,13 @@ func extractStackFromJS(value interface{}) (dfitem.Stack, bool) {
 		}
 	}
 	if obj, ok := value.(*goja.Object); ok {
+		if raw := obj.Get("_stack"); raw != nil {
+			if s, ok := raw.Export().(dfitem.Stack); ok {
+				return s, true
+			}
+		}
+	}
+	if obj, ok := value.(*goja.Object); ok {
 		name := callString(obj, "getName")
 		count := callInt(obj, "getCount", 1)
 		if name == "" {
@@ -604,9 +611,17 @@ func callEnchantments(obj *goja.Object) []dfitem.Enchantment {
 							continue
 						}
 						name, _ := m["name"].(string)
-						lvlVal, _ := m["level"].(int64)
+						lvlVal := 0
+						switch v := m["level"].(type) {
+						case int64:
+							lvlVal = int(v)
+						case int:
+							lvlVal = v
+						case float64:
+							lvlVal = int(v)
+						}
 						if et, ok := enchantmentTypeByName(name); ok {
-							out = append(out, dfitem.NewEnchantment(et, int(lvlVal)))
+							out = append(out, dfitem.NewEnchantment(et, lvlVal))
 						}
 					}
 					return out

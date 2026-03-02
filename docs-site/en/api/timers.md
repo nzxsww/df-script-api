@@ -47,6 +47,24 @@ clearInterval(id);
 - Always cancel intervals in `onDisable()` to avoid goroutine leaks.
 - Very small delays (< 1ms) may not be precise depending on the OS.
 
+::: warning Do not use world-reading methods from timers
+Timers run in separate goroutines **without an active world transaction**. Calling methods like `world.getEntities()`, `world.getEntitiesInRadius()` or `world.getBlock()` from a timer can cause a **deadlock** (the server freezes).
+
+```js
+// ❌ Incorrect — may cause deadlock
+setInterval(function() {
+    var entities = world.getEntities(); // DO NOT do this
+}, 5000);
+
+// ✅ Correct — only use inside events or commands
+events.on("PlayerJoin", function(event) {
+    var entities = world.getEntities(); // OK
+});
+```
+
+From timers you can safely use: `console.log`, `server.broadcast`, `player.sendMessage` (if you have a player reference), `config`, and **write** methods like `world.spawnEntity` or `world.setBlock`.
+:::
+
 ```js
 var intervalId;
 

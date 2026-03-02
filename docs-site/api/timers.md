@@ -95,6 +95,24 @@ function onEnable() {
 - Los timers **no se cancelan automáticamente** al desactivar el plugin. Si usás `setInterval`, cancelalo en `onDisable()`.
 - El delay mínimo real depende del sistema operativo — delays muy pequeños (< 1ms) pueden no ser precisos.
 
+::: warning No usar métodos que lean el mundo desde timers
+Los timers corren en goroutines separadas **sin una transacción activa del mundo**. Llamar métodos como `world.getEntities()`, `world.getEntitiesInRadius()` o `world.getBlock()` desde un timer puede causar un **deadlock** (el servidor se freezea).
+
+```js
+// ❌ Incorrecto — puede causar deadlock
+setInterval(function() {
+    var entities = world.getEntities(); // NO hacer esto
+}, 5000);
+
+// ✅ Correcto — solo usar en eventos o comandos
+events.on("PlayerJoin", function(event) {
+    var entities = world.getEntities(); // OK
+});
+```
+
+Desde timers sí podés usar: `console.log`, `server.broadcast`, `player.sendMessage` (si tenés referencia al jugador), `config`, y métodos que **escriben** como `world.spawnEntity` o `world.setBlock`.
+:::
+
 ```js
 var intervalId;
 

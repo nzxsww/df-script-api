@@ -504,6 +504,96 @@ function onEnable() {
         console.log("[TEST] cofre clear()");
     });
 
+    commands.register("tipocofre", "Muestra el tipo del contenedor frente a ti", function(player, args) {
+        var x = Math.floor(player.getX());
+        var y = Math.floor(player.getY());
+        var z = Math.floor(player.getZ() + 1);
+        var inv = world.getInventory(x, y, z);
+        if (inv === null) {
+            player.sendMessage("§cNo hay un contenedor en §f" + x + "," + y + "," + z);
+            return;
+        }
+        var tipo = inv.getType();
+        player.sendMessage("§eTipo de contenedor: §f" + tipo);
+        player.sendMessage("§eSlots: §f" + inv.getSize());
+        player.sendTitle("§e" + tipo, "§f" + inv.getSize() + " slots");
+        console.log("[TEST] inv.getType()=" + tipo + " size=" + inv.getSize());
+    });
+
+    commands.register("tipoinv", "Muestra el tipo de tu inventario", function(player, args) {
+        var inv = player.getInventory();
+        player.sendMessage("§eTipo: §f" + inv.getType() + " §e(§f" + inv.getSize() + " slots§e)");
+        console.log("[TEST] player inv.getType()=" + inv.getType());
+    });
+
+    commands.register("setcontenido", "Llena cofre con contenido predefinido", function(player, args) {
+        var x = Math.floor(player.getX());
+        var y = Math.floor(player.getY());
+        var z = Math.floor(player.getZ() + 1);
+        var inv = world.getInventory(x, y, z);
+        if (inv === null) {
+            player.sendMessage("§cNo hay un contenedor ahí.");
+            return;
+        }
+        inv.setContents([
+            { slot: 0, name: "minecraft:diamond", count: 64 },
+            { slot: 1, name: "minecraft:gold_ingot", count: 32 },
+            { slot: 2, name: "minecraft:iron_ingot", count: 16 },
+            { slot: 3, name: "minecraft:emerald", count: 8 },
+            { slot: 4, name: "minecraft:netherite_ingot", count: 4 }
+        ]);
+        player.sendMessage("§aContenido predefinido establecido en el cofre!");
+        console.log("[TEST] inv.setContents() 5 items");
+    });
+
+    commands.register("getslot", "Ver item en un slot especifico del cofre", function(player, args) {
+        if (args.length < 1) {
+            player.sendMessage("§cUso: /getslot <slot>");
+            return;
+        }
+        var slot = parseInt(args[0]);
+        var x = Math.floor(player.getX());
+        var y = Math.floor(player.getY());
+        var z = Math.floor(player.getZ() + 1);
+        var inv = world.getInventory(x, y, z);
+        if (inv === null) {
+            player.sendMessage("§cNo hay un contenedor ahí.");
+            return;
+        }
+        var item = inv.getItem(slot);
+        if (item === null) {
+            player.sendMessage("§7Slot §f" + slot + "§7: §cvacío");
+        } else {
+            player.sendMessage("§7Slot §f" + slot + "§7: §f" + item.name + " x" + item.count);
+        }
+        console.log("[TEST] inv.getItem(" + slot + ")=" + JSON.stringify(item));
+    });
+
+    commands.register("setslot", "Poner item en un slot del cofre", function(player, args) {
+        if (args.length < 3) {
+            player.sendMessage("§cUso: /setslot <slot> <nombre> <cantidad>");
+            return;
+        }
+        var slot = parseInt(args[0]);
+        var nombre = args[1];
+        var cantidad = parseInt(args[2]);
+        var x = Math.floor(player.getX());
+        var y = Math.floor(player.getY());
+        var z = Math.floor(player.getZ() + 1);
+        var inv = world.getInventory(x, y, z);
+        if (inv === null) {
+            player.sendMessage("§cNo hay un contenedor ahí.");
+            return;
+        }
+        var ok = inv.setItem(slot, nombre, cantidad);
+        if (ok) {
+            player.sendMessage("§aItem §f" + nombre + " x" + cantidad + " §acolocado en slot §f" + slot);
+        } else {
+            player.sendMessage("§cNo se pudo colocar el item (nombre inválido o slot fuera de rango)");
+        }
+        console.log("[TEST] inv.setItem(" + slot + ", " + nombre + ", " + cantidad + ")=" + ok);
+    });
+
     // --- Comandos de test Entity API ---
 
     commands.register("entidades", "Lista todas las entidades del mundo", function(player, args) {

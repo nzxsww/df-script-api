@@ -21,6 +21,7 @@ var inv = player.getInventory();
 
 | Método | Retorna | Descripción |
 |---|---|---|
+| `getType()` | `string` | Tipo de inventario: `"player"`, `"chest"`, `"barrel"`, `"hopper"`, `"furnace"`, `"blast_furnace"`, `"smoker"`, `"brewing_stand"`, `"container"` |
 | `getSize()` | `number` | Cantidad total de slots del inventario |
 | `getItem(slot)` | `{name, count}\|null` | Item en el slot dado. `null` si está vacío |
 | `setItem(slot, nombre, cantidad)` | `boolean` | Colocar un item en el slot dado. Retorna `true` si tuvo éxito |
@@ -30,6 +31,7 @@ var inv = player.getInventory();
 | `contains(nombre)` | `boolean` | `true` si el inventario contiene al menos 1 del item dado |
 | `count(nombre)` | `number` | Cantidad total del item dado en todo el inventario |
 | `getItems()` | `{slot, name, count}[]` | Array con todos los slots no vacíos |
+| `setContents(items)` | `boolean` | Reemplaza todo el contenido. `items`: array de `{slot, name, count}`. Los slots no especificados quedan vacíos |
 
 ## Ejemplos
 

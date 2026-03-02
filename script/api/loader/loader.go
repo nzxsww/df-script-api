@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
+	"github.com/df-mc/dragonfly/server/block"
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/entity"
 	"github.com/df-mc/dragonfly/server/entity/effect"
@@ -108,7 +109,7 @@ func newPlayerWrapper(p *dfplayer.Player) map[string]interface{} {
 		"getItemCount":   w.getItemCount,
 		// Inventario del jugador
 		"getInventory": func() interface{} {
-			return newInventoryWrapper(w.p.Inventory())
+			return newInventoryWrapper(w.p.Inventory(), "player")
 		},
 		// Sonidos
 		"playSound": w.playSound,
@@ -309,9 +310,35 @@ func (w *playerWrapper) playSound(soundName string) {
 	w.p.PlaySound(s)
 }
 
+// inventoryTypeFromBlock retorna el tipo de inventario como string dado un bloque.
+func inventoryTypeFromBlock(b world.Block) string {
+	switch b.(type) {
+	case block.Chest:
+		return "chest"
+	case block.Barrel:
+		return "barrel"
+	case block.Hopper:
+		return "hopper"
+	case block.Furnace:
+		return "furnace"
+	case block.BlastFurnace:
+		return "blast_furnace"
+	case block.Smoker:
+		return "smoker"
+	case block.BrewingStand:
+		return "brewing_stand"
+	default:
+		return "container"
+	}
+}
+
 // newInventoryWrapper construye un mapa JS con métodos para interactuar con un inventario.
-func newInventoryWrapper(inv *inventory.Inventory) map[string]interface{} {
+// invType es el tipo de inventario ("chest", "barrel", "player", etc.)
+func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]interface{} {
 	return map[string]interface{}{
+		// getType() — retorna el tipo de inventario: "chest", "barrel", "hopper", "furnace", "player", etc.
+		"getType": func() string { return invType },
+
 		// getSize() — retorna la cantidad de slots del inventario.
 		"getSize": func() int { return inv.Size() },
 
@@ -398,6 +425,35 @@ func newInventoryWrapper(inv *inventory.Inventory) map[string]interface{} {
 				})
 			}
 			return items
+		},
+
+		// setContents(items) — reemplaza todo el contenido del inventario.
+		// items: array de objetos { slot, name, count }
+		// Los slots no especificados quedan vacíos.
+		"setContents": func(items []interface{}) bool {
+			// Primero limpiar
+			inv.Clear()
+			// Luego colocar cada item
+			for _, item := range items {
+				m, ok := item.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				slot, _ := m["slot"].(int64)
+				name, _ := m["name"].(string)
+				countVal, _ := m["count"].(int64)
+				if name == "" {
+					continue
+				}
+				it, ok := world.ItemByName(name, 0)
+				if !ok {
+					fmt.Printf("[inventoryWrapper] setContents: item desconocido '%s'\n", name)
+					continue
+				}
+				stack := dfitem.NewStack(it, int(countVal))
+				_ = inv.SetItem(int(slot), stack)
+			}
+			return true
 		},
 
 		// count(nombre) — retorna la cantidad total del item dado en el inventario.
@@ -1228,6 +1284,7 @@ func (l *Loader) registerWorld(vm *goja.Runtime, p *ScriptPlugin) {
 				return nil
 			}
 			var inv *inventory.Inventory
+			var invType string
 			p.srv.World().Exec(func(tx *world.Tx) {
 				b := tx.Block(cube.Pos{x, y, z})
 				type container interface {
@@ -1235,12 +1292,13 @@ func (l *Loader) registerWorld(vm *goja.Runtime, p *ScriptPlugin) {
 				}
 				if c, ok := b.(container); ok {
 					inv = c.Inventory(tx, cube.Pos{x, y, z})
+					invType = inventoryTypeFromBlock(b)
 				}
 			})
 			if inv == nil {
 				return nil
 			}
-			return newInventoryWrapper(inv)
+			return newInventoryWrapper(inv, invType)
 		},
 
 		// getHighestBlock(x, z) — retorna la Y del bloque más alto en las coordenadas X,Z dadas.

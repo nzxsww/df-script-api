@@ -389,6 +389,121 @@ function onEnable() {
         console.log("[TEST] broadcast: " + msg);
     });
 
+    // --- Comandos de test Inventory API ---
+
+    commands.register("verinv", "Ver tu inventario", function(player, args) {
+        var inv = player.getInventory();
+        var items = inv.getItems();
+        player.sendMessage("§eInventario (§f" + items.length + "§e slots ocupados de §f" + inv.getSize() + "§e):");
+        for (var i = 0; i < items.length; i++) {
+            player.sendMessage("§7Slot §f" + items[i].slot + "§7: §f" + items[i].name + " x" + items[i].count);
+        }
+        console.log("[TEST] player.getInventory: " + items.length + " items");
+    });
+
+    commands.register("contaritems", "Contar items en tu inventario", function(player, args) {
+        if (args.length < 1) {
+            player.sendMessage("§cUso: /contaritems <nombre>");
+            return;
+        }
+        var nombre = args[0];
+        var inv = player.getInventory();
+        var cantidad = inv.count(nombre);
+        var tiene = inv.contains(nombre);
+        player.sendMessage("§eItem: §f" + nombre);
+        player.sendMessage("§eCantidad total: §f" + cantidad);
+        player.sendMessage("§eContiene: §f" + (tiene ? "§aSí" : "§cNo"));
+        console.log("[TEST] inv.count(" + nombre + ")=" + cantidad);
+    });
+
+    commands.register("daritems", "Agrega items a tu inventario", function(player, args) {
+        if (args.length < 1) {
+            player.sendMessage("§cUso: /daritems <nombre> [cantidad]");
+            return;
+        }
+        var nombre = args[0];
+        var cantidad = args.length > 1 ? parseInt(args[1]) : 1;
+        var inv = player.getInventory();
+        var sobrante = inv.addItem(nombre, cantidad);
+        if (sobrante === 0) {
+            player.sendMessage("§a" + cantidad + "x §f" + nombre + " §aagregado!");
+        } else {
+            player.sendMessage("§eSolo se agregaron §f" + (cantidad - sobrante) + "§e (inventario lleno, sobrante: §f" + sobrante + "§e)");
+        }
+        console.log("[TEST] inv.addItem(" + nombre + ", " + cantidad + ") sobrante=" + sobrante);
+    });
+
+    commands.register("quitaritems", "Quita items de tu inventario", function(player, args) {
+        if (args.length < 1) {
+            player.sendMessage("§cUso: /quitaritems <nombre> [cantidad]");
+            return;
+        }
+        var nombre = args[0];
+        var cantidad = args.length > 1 ? parseInt(args[1]) : 1;
+        var inv = player.getInventory();
+        var ok = inv.removeItem(nombre, cantidad);
+        if (ok) {
+            player.sendMessage("§a" + cantidad + "x §f" + nombre + " §aremovido!");
+        } else {
+            player.sendMessage("§cNo se pudo remover §f" + nombre + " §c(no tienes suficientes)");
+        }
+        console.log("[TEST] inv.removeItem(" + nombre + ", " + cantidad + ")=" + ok);
+    });
+
+    commands.register("limpiartodo", "Vacía tu inventario", function(player, args) {
+        var inv = player.getInventory();
+        inv.clear();
+        player.sendMessage("§aInventario vaciado!");
+        console.log("[TEST] inv.clear()");
+    });
+
+    commands.register("vercofre", "Ver contenido del cofre frente a ti", function(player, args) {
+        var x = Math.floor(player.getX());
+        var y = Math.floor(player.getY());
+        var z = Math.floor(player.getZ() + 1);
+        var inv = world.getInventory(x, y, z);
+        if (inv === null) {
+            player.sendMessage("§cNo hay un contenedor en §f" + x + "," + y + "," + z);
+            console.log("[TEST] world.getInventory: null en " + x + "," + y + "," + z);
+            return;
+        }
+        var items = inv.getItems();
+        player.sendMessage("§eCofre en §f" + x + "," + y + "," + z + " §e(§f" + items.length + "§e/§f" + inv.getSize() + " slots):");
+        for (var i = 0; i < items.length; i++) {
+            player.sendMessage("§7Slot §f" + items[i].slot + "§7: §f" + items[i].name + " x" + items[i].count);
+        }
+        console.log("[TEST] world.getInventory: " + items.length + " items en cofre");
+    });
+
+    commands.register("llenarcofre", "Llena cofre frente a ti con diamantes", function(player, args) {
+        var x = Math.floor(player.getX());
+        var y = Math.floor(player.getY());
+        var z = Math.floor(player.getZ() + 1);
+        var inv = world.getInventory(x, y, z);
+        if (inv === null) {
+            player.sendMessage("§cNo hay un contenedor ahí.");
+            return;
+        }
+        inv.clear();
+        var sobrante = inv.addItem("minecraft:diamond", 1000);
+        player.sendMessage("§bCofre llenado con diamantes! Sobrante: §f" + sobrante);
+        console.log("[TEST] inv.addItem diamonds sobrante=" + sobrante);
+    });
+
+    commands.register("vaciarcofre", "Vacía el cofre frente a ti", function(player, args) {
+        var x = Math.floor(player.getX());
+        var y = Math.floor(player.getY());
+        var z = Math.floor(player.getZ() + 1);
+        var inv = world.getInventory(x, y, z);
+        if (inv === null) {
+            player.sendMessage("§cNo hay un contenedor ahí.");
+            return;
+        }
+        inv.clear();
+        player.sendMessage("§aCofre vaciado!");
+        console.log("[TEST] cofre clear()");
+    });
+
     // --- Comandos de test Entity API ---
 
     commands.register("entidades", "Lista todas las entidades del mundo", function(player, args) {

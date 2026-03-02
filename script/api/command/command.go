@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
+	"github.com/df-mc/dragonfly/server/block"
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/cmd"
 	"github.com/df-mc/dragonfly/server/entity"
@@ -268,7 +269,7 @@ func buildPlayerMap(p *dfplayer.Player) map[string]interface{} {
 		},
 		// Inventario del jugador
 		"getInventory": func() interface{} {
-			return buildInventoryMap(p.Inventory())
+			return buildInventoryMap(p.Inventory(), "player")
 		},
 		// Comandos
 		"executeCommand": func(cmd string) { p.ExecuteCommand(cmd) },
@@ -423,10 +424,34 @@ func MakeJSCallback(vm *goja.Runtime, callback goja.Callable, pluginName string,
 	}
 }
 
+// inventoryTypeFromBlock retorna el tipo de inventario como string.
+// Debe mantenerse sincronizado con inventoryTypeFromBlock en loader/loader.go.
+func inventoryTypeFromBlock(b world.Block) string {
+	switch b.(type) {
+	case block.Chest:
+		return "chest"
+	case block.Barrel:
+		return "barrel"
+	case block.Hopper:
+		return "hopper"
+	case block.Furnace:
+		return "furnace"
+	case block.BlastFurnace:
+		return "blast_furnace"
+	case block.Smoker:
+		return "smoker"
+	case block.BrewingStand:
+		return "brewing_stand"
+	default:
+		return "container"
+	}
+}
+
 // buildInventoryMap construye un mapa JS para interactuar con un inventario.
 // Debe mantenerse sincronizado con newInventoryWrapper en loader/loader.go.
-func buildInventoryMap(inv *inventory.Inventory) map[string]interface{} {
+func buildInventoryMap(inv *inventory.Inventory, invType string) map[string]interface{} {
 	return map[string]interface{}{
+		"getType": func() string { return invType },
 		"getSize": func() int { return inv.Size() },
 		"getItem": func(slot int) interface{} {
 			stack, err := inv.Item(slot)
@@ -504,6 +529,29 @@ func buildInventoryMap(inv *inventory.Inventory) map[string]interface{} {
 				}
 			}
 			return total
+		},
+		"setContents": func(items []interface{}) bool {
+			inv.Clear()
+			for _, item := range items {
+				m, ok := item.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				slot, _ := m["slot"].(int64)
+				name, _ := m["name"].(string)
+				countVal, _ := m["count"].(int64)
+				if name == "" {
+					continue
+				}
+				it, ok := world.ItemByName(name, 0)
+				if !ok {
+					fmt.Printf("[Commands] setContents: item desconocido '%s'\n", name)
+					continue
+				}
+				stack := dfitem.NewStack(it, int(countVal))
+				_ = inv.SetItem(int(slot), stack)
+			}
+			return true
 		},
 	}
 }
@@ -586,7 +634,8 @@ func BuildWorldMapFromTx(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map
 				Inventory(*world.Tx, cube.Pos) *inventory.Inventory
 			}
 			if c, ok := b.(container); ok {
-				return buildInventoryMap(c.Inventory(tx, cube.Pos{x, y, z}))
+				invType := inventoryTypeFromBlock(b)
+				return buildInventoryMap(c.Inventory(tx, cube.Pos{x, y, z}), invType)
 			}
 			return nil
 		},

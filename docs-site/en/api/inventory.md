@@ -21,6 +21,7 @@ var inv = player.getInventory();
 
 | Method | Returns | Description |
 |---|---|---|
+| `getType()` | `string` | Inventory type: `"player"`, `"chest"`, `"barrel"`, `"hopper"`, `"furnace"`, `"blast_furnace"`, `"smoker"`, `"brewing_stand"`, `"container"` |
 | `getSize()` | `number` | Total number of slots in the inventory |
 | `getItem(slot)` | `{name, count}\|null` | Item in the given slot. `null` if empty |
 | `setItem(slot, name, count)` | `boolean` | Place an item in the given slot. Returns `true` on success |
@@ -30,6 +31,7 @@ var inv = player.getInventory();
 | `contains(name)` | `boolean` | `true` if the inventory contains at least 1 of the given item |
 | `count(name)` | `number` | Total count of the given item across all slots |
 | `getItems()` | `{slot, name, count}[]` | Array of all non-empty slots |
+| `setContents(items)` | `boolean` | Replace all contents. `items`: array of `{slot, name, count}`. Unspecified slots are cleared |
 
 ## Examples
 

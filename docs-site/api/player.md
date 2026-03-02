@@ -297,6 +297,25 @@ var casco = player.getArmour(0); // "minecraft:diamond_helmet"
 player.clearArmour();
 ```
 
+## Scoreboard
+
+| Método | Descripción |
+|---|---|
+| `sendScoreboard(sb)` | Envía un scoreboard al jugador (creado con `scoreboard.create()`) |
+| `removeScoreboard()` | Quita el scoreboard de la pantalla del jugador |
+
+```js
+var sb = scoreboard.create("§6Mi Servidor");
+sb.setLine(0, "§7Jugadores: 5");
+sb.setLine(1, "§7Mapa: Lobby");
+player.sendScoreboard(sb);
+
+// Más tarde...
+player.removeScoreboard();
+```
+
+Ver la [Scoreboard API](/api/scoreboard) para documentación completa incluyendo ScoreboardManager y Live Scoreboard.
+
 ## Comandos
 
 | Método | Descripción |

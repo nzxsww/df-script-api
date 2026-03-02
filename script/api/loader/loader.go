@@ -123,6 +123,11 @@ func newPlayerWrapper(p *dfplayer.Player) map[string]interface{} {
 		"setArmour":   w.setArmour,
 		"getArmour":   w.getArmour,
 		"clearArmour": w.clearArmour,
+		// Scoreboard
+		"sendScoreboard":   w.sendScoreboard,
+		"removeScoreboard": w.removeScoreboard,
+		// Referencia interna al jugador Go — usada por scoreboardManager y liveScoreboard.
+		"_player": w.p,
 	}
 }
 
@@ -965,6 +970,19 @@ func (w *playerWrapper) clearArmour() {
 	w.p.Armour().Set(dfitem.Stack{}, dfitem.Stack{}, dfitem.Stack{}, dfitem.Stack{})
 }
 
+// --- Scoreboard ---
+
+// sendScoreboard envía un scoreboard al jugador. El argumento debe ser un objeto
+// creado con scoreboard.create("título").
+func (w *playerWrapper) sendScoreboard(sbVal goja.Value) {
+	sendScoreboardToPlayer(w.p, sbVal)
+}
+
+// removeScoreboard quita el scoreboard actualmente visible del jugador.
+func (w *playerWrapper) removeScoreboard() {
+	w.p.RemoveScoreboard()
+}
+
 // ScriptPlugin representa un plugin cargado desde JavaScript.
 type ScriptPlugin struct {
 	name       string
@@ -1139,6 +1157,7 @@ func (l *Loader) loadScript(p *ScriptPlugin, scriptFile string) error {
 	l.registerServer(vm, p)
 	l.registerItemAPI(vm, p)
 	l.registerVirtualInventories(vm, p)
+	l.registerScoreboardAPI(vm, p)
 
 	// Leer y ejecutar el script
 	scriptContent, err := os.ReadFile(scriptFile)

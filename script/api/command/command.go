@@ -18,6 +18,7 @@ import (
 	"github.com/df-mc/dragonfly/server/item/inventory"
 	"strings"
 	dfplayer "github.com/df-mc/dragonfly/server/player"
+	"github.com/df-mc/dragonfly/server/player/scoreboard"
 	"github.com/df-mc/dragonfly/server/player/title"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/sound"
@@ -341,6 +342,34 @@ func buildPlayerMap(p *dfplayer.Player) map[string]interface{} {
 		"clearArmour": func() {
 			p.Armour().Set(dfitem.Stack{}, dfitem.Stack{}, dfitem.Stack{}, dfitem.Stack{})
 		},
+		// Scoreboard
+		"sendScoreboard": func(sbVal goja.Value) {
+			if sbVal == nil || goja.IsNull(sbVal) || goja.IsUndefined(sbVal) {
+				fmt.Printf("[Commands] sendScoreboard: scoreboard nulo\n")
+				return
+			}
+			obj, ok := sbVal.(*goja.Object)
+			if !ok {
+				fmt.Printf("[Commands] sendScoreboard: argumento no es un objeto\n")
+				return
+			}
+			raw := obj.Get("_board")
+			if raw == nil {
+				fmt.Printf("[Commands] sendScoreboard: objeto no tiene _board (¿usaste scoreboard.create()?)\n")
+				return
+			}
+			board, ok := raw.Export().(*scoreboard.Scoreboard)
+			if !ok {
+				fmt.Printf("[Commands] sendScoreboard: _board no es un *scoreboard.Scoreboard\n")
+				return
+			}
+			p.SendScoreboard(board)
+		},
+		"removeScoreboard": func() {
+			p.RemoveScoreboard()
+		},
+		// Referencia interna al jugador Go — usada por scoreboardManager y liveScoreboard.
+		"_player": p,
 	}
 }
 

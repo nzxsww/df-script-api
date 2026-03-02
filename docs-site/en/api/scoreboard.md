@@ -154,7 +154,7 @@ The minimum interval is **50ms**. For HUDs with smooth coordinates, **100ms** is
 :::
 
 ::: warning
-The live callback receives `(sb, player)` — the scoreboard and the player. It is called **once per player** registered in the live. **Do not use `server.getPlayers()`** inside the callback — it will cause a transaction deadlock and a server panic.
+The live callback receives `(sb, playerData)` — the scoreboard and an object with precomputed getters (`getName`, `getHealth`, `getX`, `getGameMode`, etc.). It is called **once per player** registered in the live. **Do not use `server.getPlayers()`** inside the callback — it will cause a transaction deadlock and a server panic.
 :::
 
 ### Live Scoreboard methods

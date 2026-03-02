@@ -830,9 +830,9 @@ function onEnable() {
     // una vez por cada jugador registrado en el live. NO usar server.getPlayers()
     // desde el callback — causaría un deadlock de transacción (regla #13 del AGENTS).
 
-    // El callback recibe (sb, player) — un scoreboard fresco y el jugador específico.
+    // El callback recibe (sb, playerData) — un scoreboard fresco y un objeto con getters
+    // precalculados del jugador (nombre, vida, coords, gamemode, etc.).
     // NO usar server.getPlayers() aquí — causaría un deadlock de transacción.
-    // Usar directamente el player recibido para leer health, coords, gamemode, etc.
     liveHUD = scoreboard.createLive("§6§lExamplePlugin", function(sb, player) {
         var lines = [
             "§7Jugador: §f" + player.getName(),

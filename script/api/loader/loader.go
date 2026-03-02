@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/df-mc/dragonfly/server"
@@ -993,6 +994,7 @@ type ScriptPlugin struct {
 	pluginMgr  *plugin.Manager
 	enabled    bool
 	vm         *goja.Runtime
+	vmMu       *sync.Mutex
 	module     *goja.Object
 	cfg        *config.Config
 }
@@ -1005,6 +1007,7 @@ func newScriptPlugin(desc *Descriptor, dataFolder string, srv *server.Server, mg
 		dataFolder: dataFolder,
 		srv:        srv,
 		pluginMgr:  mgr,
+		vmMu:       &sync.Mutex{},
 	}
 }
 
@@ -1012,9 +1015,11 @@ func (p *ScriptPlugin) OnEnable() {
 	p.enabled = true
 	if p.module != nil {
 		if enable, ok := goja.AssertFunction(p.module.Get("onEnable")); ok {
-			if _, err := enable(p.module); err != nil {
-				fmt.Printf("[%s] Error en onEnable: %v\n", p.name, err)
-			}
+			p.withVMLock(func() {
+				if _, err := enable(p.module); err != nil {
+					fmt.Printf("[%s] Error en onEnable: %v\n", p.name, err)
+				}
+			})
 		}
 	}
 }
@@ -1023,9 +1028,11 @@ func (p *ScriptPlugin) OnDisable() {
 	p.enabled = false
 	if p.module != nil {
 		if disable, ok := goja.AssertFunction(p.module.Get("onDisable")); ok {
-			if _, err := disable(p.module); err != nil {
-				fmt.Printf("[%s] Error en onDisable: %v\n", p.name, err)
-			}
+			p.withVMLock(func() {
+				if _, err := disable(p.module); err != nil {
+					fmt.Printf("[%s] Error en onDisable: %v\n", p.name, err)
+				}
+			})
 		}
 	}
 }
@@ -1042,6 +1049,18 @@ func (p *ScriptPlugin) GetConfig() *config.Config {
 		p.cfg.Load()
 	}
 	return p.cfg
+}
+
+// withVMLock ejecuta una función de forma segura para el VM de Goja.
+// Goja no es thread-safe, así que cualquier llamada a callbacks JS debe pasar por acá.
+func (p *ScriptPlugin) withVMLock(fn func()) {
+	if p.vmMu == nil {
+		fn()
+		return
+	}
+	p.vmMu.Lock()
+	defer p.vmMu.Unlock()
+	fn()
 }
 
 // Loader carga plugins JavaScript desde un directorio.
@@ -1148,7 +1167,7 @@ func (l *Loader) loadScript(p *ScriptPlugin, scriptFile string) error {
 
 	// Exponer la API al script
 	l.registerConsole(vm, p)
-	l.registerTimers(vm, vm)
+	l.registerTimers(vm, p)
 	l.registerPluginInfo(vm, p)
 	l.registerEvents(vm, p)
 	l.registerCommands(vm, p)
@@ -1197,7 +1216,7 @@ func (l *Loader) registerConsole(vm *goja.Runtime, p *ScriptPlugin) {
 }
 
 // registerTimers expone setTimeout y setInterval con la firma correcta de JS: fn, delay.
-func (l *Loader) registerTimers(vm *goja.Runtime, _ *goja.Runtime) {
+func (l *Loader) registerTimers(vm *goja.Runtime, p *ScriptPlugin) {
 	vm.Set("setTimeout", func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) < 2 {
 			return goja.Undefined()
@@ -1207,8 +1226,12 @@ func (l *Loader) registerTimers(vm *goja.Runtime, _ *goja.Runtime) {
 		go func() {
 			time.Sleep(delay)
 			if f, ok := goja.AssertFunction(fn); ok {
-				if _, err := f(goja.Undefined()); err != nil {
-					fmt.Printf("setTimeout error: %v\n", err)
+				var callErr error
+				p.withVMLock(func() {
+					_, callErr = f(goja.Undefined())
+				})
+				if callErr != nil {
+					fmt.Printf("setTimeout error: %v\n", callErr)
 				}
 			}
 		}()
@@ -1225,8 +1248,12 @@ func (l *Loader) registerTimers(vm *goja.Runtime, _ *goja.Runtime) {
 		go func() {
 			for range ticker.C {
 				if f, ok := goja.AssertFunction(fn); ok {
-					if _, err := f(goja.Undefined()); err != nil {
-						fmt.Printf("setInterval error: %v\n", err)
+					var callErr error
+					p.withVMLock(func() {
+						_, callErr = f(goja.Undefined())
+					})
+					if callErr != nil {
+						fmt.Printf("setInterval error: %v\n", callErr)
 						ticker.Stop()
 						return
 					}

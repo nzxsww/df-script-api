@@ -154,7 +154,7 @@ El intervalo mínimo es **50ms**. Para HUDs con coordenadas fluidas se recomiend
 :::
 
 ::: warning
-El callback del live recibe `(sb, player)` — el scoreboard y el jugador. El callback se llama **una vez por cada jugador** registrado en el live. **No usar `server.getPlayers()`** desde dentro del callback — causará un deadlock de transacción y un panic en el servidor.
+El callback del live recibe `(sb, playerData)` — el scoreboard y un objeto con getters precalculados (`getName`, `getHealth`, `getX`, `getGameMode`, etc.). Se llama **una vez por cada jugador** registrado en el live. **No usar `server.getPlayers()`** desde dentro del callback — causará un deadlock de transacción y un panic en el servidor.
 :::
 
 ### Métodos del Live Scoreboard

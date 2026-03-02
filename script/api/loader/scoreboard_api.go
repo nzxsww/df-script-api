@@ -7,6 +7,7 @@ import (
 
 	dfplayer "github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/scoreboard"
+	"github.com/df-mc/dragonfly/server/world"
 	"github.com/dop251/goja"
 )
 
@@ -54,14 +55,16 @@ func (m *scoreboardManager) getAssignedUUIDs() []string {
 
 // liveScoreboard es un scoreboard que se actualiza automáticamente en intervalos.
 // Mantiene una lista de jugadores a los que debe reenviar el scoreboard en cada tick.
+// El ticker corre en su propia goroutine y todas las llamadas al VM se sincronizan
+// con el mutex del plugin (Goja no es thread-safe).
 type liveScoreboard struct {
 	board    *scoreboard.Scoreboard
 	title    string
 	players  sync.Map // UUID → *dfplayer.Player
 	ticker   *time.Ticker
 	stopCh   chan struct{}
-	updateFn goja.Callable
 	vm       *goja.Runtime
+	plugin   *ScriptPlugin
 	pluginName string
 }
 
@@ -105,39 +108,36 @@ func (l *Loader) registerScoreboardAPI(vm *goja.Runtime, p *ScriptPlugin) {
 		},
 
 		// createLive(title, fn, intervalMs) — crea un scoreboard que se auto-actualiza.
-		// fn(sb) es llamado cada intervalMs ms. El scoreboard se recrea limpio en cada tick
-		// y se reenvía a todos los jugadores asignados al live scoreboard.
-		// Retorna un liveScoreboardWrapper con addPlayer/removePlayer/stop.
+		// fn recibe (sb, playerData) y se llama una vez por jugador registrado.
+		// Goja no es thread-safe, así que el callback se ejecuta bajo vm lock.
+		// NO usar server.getPlayers() dentro del callback — usar el playerData recibido.
 		"createLive": func(call goja.FunctionCall) goja.Value {
 			if len(call.Arguments) < 3 {
 				fmt.Printf("[%s] scoreboard.createLive requiere 3 argumentos: título, función, intervaloMs\n", p.name)
 				return goja.Null()
 			}
 			title := call.Argument(0).String()
-			updateFn, ok := goja.AssertFunction(call.Argument(1))
-			if !ok {
-				fmt.Printf("[%s] scoreboard.createLive: el segundo argumento debe ser una función\n", p.name)
-				return goja.Null()
-			}
 			intervalMs := call.Argument(2).ToInteger()
 			if intervalMs < 50 {
-				intervalMs = 50 // mínimo 50ms para no saturar
+				intervalMs = 50
 			}
 
 			live := &liveScoreboard{
 				title:      title,
 				ticker:     time.NewTicker(time.Duration(intervalMs) * time.Millisecond),
 				stopCh:     make(chan struct{}),
-				updateFn:   updateFn,
 				vm:         vm,
+				plugin:     p,
 				pluginName: p.name,
 			}
 
-			// Goroutine que hace el tick y reenvía a los jugadores asignados.
-			// IMPORTANTE: el callback JS se llama UNA VEZ POR JUGADOR con (sb, playerWrapper).
-			// El plugin NO debe llamar server.getPlayers() desde el callback — usar el
-			// playerWrapper recibido directamente. Leer p.Health(), p.Position(), etc. es
-			// seguro sin Tx porque son valores en memoria del jugador.
+			// tickCh recibe los datos del jugador desde la goroutine del ticker
+			// y los procesa en el event loop del VM (mismo goroutine que creó el VM).
+			// La goroutine del ticker solo recoge los jugadores y notifica — no toca el VM.
+			// El VM llama al callback JS en su propia goroutine a través del ticker channel.
+			// Como setInterval, corremos el callback en la goroutine del ticker (mismo patrón).
+			updateFn, fnOk := goja.AssertFunction(call.Argument(1))
+
 			go func() {
 				for {
 					select {
@@ -145,24 +145,86 @@ func (l *Loader) registerScoreboardAPI(vm *goja.Runtime, p *ScriptPlugin) {
 						live.ticker.Stop()
 						return
 					case <-live.ticker.C:
+						// Recolectar jugadores actuales en Go puro
+						type playerData struct {
+							pl   *dfplayer.Player
+							name string
+							hp   float64
+							maxHp float64
+							food  int
+							x, y, z float64
+							gm   string
+							flying bool
+							expLvl int
+						}
+						var players []playerData
 						live.players.Range(func(_, v interface{}) bool {
 							pl := v.(*dfplayer.Player)
-
-							// Crear un scoreboard fresco por jugador en cada tick
-							freshBoard := scoreboard.New(live.title)
-							sbWrapper := vm.ToValue(newScoreboardWrapper(freshBoard))
-							playerWrapper := vm.ToValue(newPlayerWrapper(pl))
-
-							// Llamar al callback JS con (sb, player)
-							if _, err := live.updateFn(goja.Undefined(), sbWrapper, playerWrapper); err != nil {
-								fmt.Printf("[%s] scoreboard.createLive: error en callback: %v\n", live.pluginName, err)
-								return true
-							}
-
-							// Enviar el scoreboard actualizado al jugador
-							pl.SendScoreboard(freshBoard)
+							pos := pl.Position()
+							players = append(players, playerData{
+								pl:     pl,
+								name:   pl.Name(),
+								hp:     pl.Health(),
+								maxHp:  pl.MaxHealth(),
+								food:   pl.Food(),
+								x:      pos[0],
+								y:      pos[1],
+								z:      pos[2],
+								gm:     gmName(pl),
+								flying: pl.Flying(),
+								expLvl: pl.ExperienceLevel(),
+							})
 							return true
 						})
+
+						// Si no hay jugadores, no llamar al VM
+						if len(players) == 0 {
+							continue
+						}
+
+						// Llamar al callback JS solo si se proporcionó una función
+						if !fnOk {
+							// Sin callback: enviar scoreboard vacío con título
+							for _, pd := range players {
+								board := scoreboard.New(live.title)
+								pd.pl.SendScoreboard(board)
+							}
+							continue
+						}
+
+						// Llamar al callback JS con un playerData wrapper liviano
+						// El callback se ejecuta bajo vm lock para evitar race conditions de Goja.
+						for _, pd := range players {
+							freshBoard := scoreboard.New(live.title)
+							boardPtr := &freshBoard
+
+							// Construir objeto JS liviano con solo los datos ya leídos en Go
+							playerDataMap := map[string]interface{}{
+								"getName":            func() string { return pd.name },
+								"getHealth":          func() float64 { return pd.hp },
+								"getMaxHealth":       func() float64 { return pd.maxHp },
+								"getFoodLevel":       func() int { return pd.food },
+								"getX":               func() float64 { return pd.x },
+								"getY":               func() float64 { return pd.y },
+								"getZ":               func() float64 { return pd.z },
+								"getGameMode":        func() string { return pd.gm },
+								"isFlying":           func() bool { return pd.flying },
+								"getExperienceLevel": func() int { return pd.expLvl },
+							}
+
+							var callErr error
+							live.plugin.withVMLock(func() {
+								sbVal := vm.ToValue(newScoreboardWrapperFromPtr(boardPtr))
+								plVal := vm.ToValue(playerDataMap)
+								_, callErr = updateFn(goja.Undefined(), sbVal, plVal)
+							})
+							if callErr != nil {
+								fmt.Printf("[%s] scoreboard.createLive: error en callback: %v\n", live.pluginName, callErr)
+								continue
+							}
+
+							pd.pl.SendScoreboard(*boardPtr)
+						}
 					}
 				}
 			}()
@@ -491,6 +553,91 @@ func newScoreboardWrapper(board *scoreboard.Scoreboard) map[string]interface{} {
 
 		// _boardPtr — referencia interna al **scoreboard.Scoreboard para uso desde Go.
 		// Usamos el puntero al puntero para que extractBoardFromJS siempre lea el board actual.
+		"_boardPtr": boardPtr,
+	}
+}
+
+// gmName retorna el nombre del gamemode del jugador como string JS.
+// Llama pl.GameMode() desde Go puro sin necesidad de Tx — seguro desde goroutines.
+func gmName(pl *dfplayer.Player) string {
+	switch pl.GameMode() {
+	case world.GameModeSurvival:
+		return "survival"
+	case world.GameModeCreative:
+		return "creative"
+	case world.GameModeAdventure:
+		return "adventure"
+	case world.GameModeSpectator:
+		return "spectator"
+	default:
+		return "survival"
+	}
+}
+
+// newScoreboardWrapperFromPtr construye el objeto JS que envuelve un **scoreboard.Scoreboard.
+// Igual a newScoreboardWrapper pero acepta un puntero ya existente — usado en createLive
+// para que setLines() pueda actualizar el board original y detectar cambios.
+func newScoreboardWrapperFromPtr(boardPtr **scoreboard.Scoreboard) map[string]interface{} {
+	return map[string]interface{}{
+		"getTitle": func() string { return (*boardPtr).Name() },
+		"setLine": func(index int, text string) bool {
+			if index < 0 || index >= 15 {
+				return false
+			}
+			defer func() { recover() }()
+			(*boardPtr).Set(index, text)
+			return true
+		},
+		"removeLine": func(index int) bool {
+			if index < 0 || index >= 15 {
+				return false
+			}
+			defer func() { recover() }()
+			(*boardPtr).Remove(index)
+			return true
+		},
+		"addLine": func(text string) bool {
+			_, err := (*boardPtr).WriteString(text)
+			return err == nil
+		},
+		"setLines": func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				return goja.Undefined()
+			}
+			exported := call.Argument(0).Export()
+			var lines []string
+			switch v := exported.(type) {
+			case []interface{}:
+				for _, item := range v {
+					lines = append(lines, fmt.Sprint(item))
+				}
+			case []string:
+				lines = v
+			default:
+				return goja.Undefined()
+			}
+			if len(lines) > 15 {
+				lines = lines[:15]
+			}
+			title := (*boardPtr).Name()
+			fresh := scoreboard.New(title)
+			for i, line := range lines {
+				fresh.Set(i, line)
+			}
+			*boardPtr = fresh
+			return goja.Undefined()
+		},
+		"getLines":      func() []string { return (*boardPtr).Lines() },
+		"getLineCount":  func() int { return len((*boardPtr).Lines()) },
+		"setDescending": func() { (*boardPtr).SetDescending() },
+		"isDescending":  func() bool { return (*boardPtr).Descending() },
+		"removePadding": func() { (*boardPtr).RemovePadding() },
+		"sendTo": func(playerObj goja.Value) {
+			pl := extractPlayerFromJS(playerObj)
+			if pl != nil {
+				pl.SendScoreboard(*boardPtr)
+			}
+		},
 		"_boardPtr": boardPtr,
 	}
 }

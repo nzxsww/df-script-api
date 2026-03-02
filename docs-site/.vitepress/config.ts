@@ -39,6 +39,7 @@ export default defineConfig({
             items: [
               { text: 'Eventos', link: '/api/events' },
               { text: 'Objeto Player', link: '/api/player' },
+              { text: 'Inventario', link: '/api/inventory' },
               { text: 'Mundo (World)', link: '/api/world' },
               { text: 'Entidad (Entity)', link: '/api/entity' },
               { text: 'Servidor (Server)', link: '/api/server' },
@@ -99,6 +100,7 @@ export default defineConfig({
             items: [
               { text: 'Events', link: '/en/api/events' },
               { text: 'Player Object', link: '/en/api/player' },
+              { text: 'Inventory', link: '/en/api/inventory' },
               { text: 'World', link: '/en/api/world' },
               { text: 'Entity', link: '/en/api/entity' },
               { text: 'Server', link: '/en/api/server' },

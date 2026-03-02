@@ -13,6 +13,7 @@ import (
 	"github.com/df-mc/dragonfly/server/entity"
 	"github.com/df-mc/dragonfly/server/entity/effect"
 	dfitem "github.com/df-mc/dragonfly/server/item"
+	"github.com/df-mc/dragonfly/server/item/inventory"
 	dfplayer "github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/title"
 	"github.com/df-mc/dragonfly/server/world"
@@ -265,6 +266,10 @@ func buildPlayerMap(p *dfplayer.Player) map[string]interface{} {
 			}
 			p.PlaySound(s)
 		},
+		// Inventario del jugador
+		"getInventory": func() interface{} {
+			return buildInventoryMap(p.Inventory())
+		},
 		// Comandos
 		"executeCommand": func(cmd string) { p.ExecuteCommand(cmd) },
 		// Efectos de poción
@@ -418,6 +423,91 @@ func MakeJSCallback(vm *goja.Runtime, callback goja.Callable, pluginName string,
 	}
 }
 
+// buildInventoryMap construye un mapa JS para interactuar con un inventario.
+// Debe mantenerse sincronizado con newInventoryWrapper en loader/loader.go.
+func buildInventoryMap(inv *inventory.Inventory) map[string]interface{} {
+	return map[string]interface{}{
+		"getSize": func() int { return inv.Size() },
+		"getItem": func(slot int) interface{} {
+			stack, err := inv.Item(slot)
+			if err != nil || stack.Empty() {
+				return nil
+			}
+			name, _ := stack.Item().EncodeItem()
+			return map[string]interface{}{
+				"name":  name,
+				"count": stack.Count(),
+			}
+		},
+		"setItem": func(slot int, itemName string, count int) bool {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				return false
+			}
+			stack := dfitem.NewStack(it, count)
+			return inv.SetItem(slot, stack) == nil
+		},
+		"addItem": func(itemName string, count int) int {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				return count
+			}
+			stack := dfitem.NewStack(it, count)
+			added, _ := inv.AddItem(stack)
+			return count - added
+		},
+		"removeItem": func(itemName string, count int) bool {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				return false
+			}
+			stack := dfitem.NewStack(it, count)
+			return inv.RemoveItem(stack) == nil
+		},
+		"clear": func() { inv.Clear() },
+		"contains": func(itemName string) bool {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				return false
+			}
+			return inv.ContainsItem(dfitem.NewStack(it, 1))
+		},
+		"getItems": func() []interface{} {
+			var items []interface{}
+			for i := 0; i < inv.Size(); i++ {
+				stack, err := inv.Item(i)
+				if err != nil || stack.Empty() {
+					continue
+				}
+				name, _ := stack.Item().EncodeItem()
+				items = append(items, map[string]interface{}{
+					"slot":  i,
+					"name":  name,
+					"count": stack.Count(),
+				})
+			}
+			return items
+		},
+		"count": func(itemName string) int {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				return 0
+			}
+			total := 0
+			for i := 0; i < inv.Size(); i++ {
+				stack, err := inv.Item(i)
+				if err != nil || stack.Empty() {
+					continue
+				}
+				if stack.Item() == it {
+					total += stack.Count()
+				}
+			}
+			return total
+		},
+	}
+}
+
 // BuildEntityMap construye un mapa JS con métodos para interactuar con una entidad.
 // Debe mantenerse sincronizado con newEntityWrapper en loader/loader.go.
 func BuildEntityMap(e world.Entity, tx *world.Tx) map[string]interface{} {
@@ -486,6 +576,20 @@ func BuildEntityMap(e world.Entity, tx *world.Tx) map[string]interface{} {
 // Exportado para ser usado desde loader.go en eventos.
 func BuildWorldMapFromTx(vm *goja.Runtime, srv *server.Server, tx *world.Tx) map[string]interface{} {
 	return map[string]interface{}{
+		// --- Inventarios de bloques ---
+		"getInventory": func(x, y, z int) interface{} {
+			if srv == nil || tx == nil {
+				return nil
+			}
+			b := tx.Block(cube.Pos{x, y, z})
+			type container interface {
+				Inventory(*world.Tx, cube.Pos) *inventory.Inventory
+			}
+			if c, ok := b.(container); ok {
+				return buildInventoryMap(c.Inventory(tx, cube.Pos{x, y, z}))
+			}
+			return nil
+		},
 		// --- Bloques ---
 		"setBlock": func(x, y, z int, blockName string) {
 			if srv == nil || tx == nil {

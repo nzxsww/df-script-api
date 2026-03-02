@@ -11,6 +11,7 @@ import (
 	"github.com/df-mc/dragonfly/server/entity"
 	"github.com/df-mc/dragonfly/server/entity/effect"
 	dfitem "github.com/df-mc/dragonfly/server/item"
+	"github.com/df-mc/dragonfly/server/item/inventory"
 	dfplayer "github.com/df-mc/dragonfly/server/player"
 	"github.com/df-mc/dragonfly/server/player/title"
 	"github.com/df-mc/dragonfly/server/world"
@@ -105,6 +106,10 @@ func newPlayerWrapper(p *dfplayer.Player) map[string]interface{} {
 		"giveItem":       w.giveItem,
 		"clearInventory": w.clearInventory,
 		"getItemCount":   w.getItemCount,
+		// Inventario del jugador
+		"getInventory": func() interface{} {
+			return newInventoryWrapper(w.p.Inventory())
+		},
 		// Sonidos
 		"playSound": w.playSound,
 		// Efectos de poción
@@ -302,6 +307,118 @@ func (w *playerWrapper) playSound(soundName string) {
 		return
 	}
 	w.p.PlaySound(s)
+}
+
+// newInventoryWrapper construye un mapa JS con métodos para interactuar con un inventario.
+func newInventoryWrapper(inv *inventory.Inventory) map[string]interface{} {
+	return map[string]interface{}{
+		// getSize() — retorna la cantidad de slots del inventario.
+		"getSize": func() int { return inv.Size() },
+
+		// getItem(slot) — retorna un mapa { name, count } con el item en el slot dado, o null si está vacío.
+		"getItem": func(slot int) interface{} {
+			stack, err := inv.Item(slot)
+			if err != nil || stack.Empty() {
+				return nil
+			}
+			name, _ := stack.Item().EncodeItem()
+			return map[string]interface{}{
+				"name":  name,
+				"count": stack.Count(),
+			}
+		},
+
+		// setItem(slot, nombre, cantidad) — coloca un item en el slot dado.
+		"setItem": func(slot int, itemName string, count int) bool {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				fmt.Printf("[inventoryWrapper] setItem: item desconocido '%s'\n", itemName)
+				return false
+			}
+			stack := dfitem.NewStack(it, count)
+			if err := inv.SetItem(slot, stack); err != nil {
+				return false
+			}
+			return true
+		},
+
+		// addItem(nombre, cantidad) — agrega un item al primer slot libre disponible.
+		// Retorna la cantidad que NO pudo ser agregada (0 si todo fue agregado).
+		"addItem": func(itemName string, count int) int {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				fmt.Printf("[inventoryWrapper] addItem: item desconocido '%s'\n", itemName)
+				return count
+			}
+			stack := dfitem.NewStack(it, count)
+			added, _ := inv.AddItem(stack)
+			return count - added
+		},
+
+		// removeItem(nombre, cantidad) — remueve una cantidad del item dado del inventario.
+		// Retorna true si se removió correctamente.
+		"removeItem": func(itemName string, count int) bool {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				return false
+			}
+			stack := dfitem.NewStack(it, count)
+			return inv.RemoveItem(stack) == nil
+		},
+
+		// clear() — vacía todos los slots del inventario.
+		"clear": func() {
+			inv.Clear()
+		},
+
+		// contains(nombre) — retorna true si el inventario contiene al menos 1 del item dado.
+		"contains": func(itemName string) bool {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				return false
+			}
+			stack := dfitem.NewStack(it, 1)
+			return inv.ContainsItem(stack)
+		},
+
+		// getItems() — retorna un array con todos los items del inventario (slots no vacíos).
+		// Cada elemento: { slot, name, count }
+		"getItems": func() []interface{} {
+			var items []interface{}
+			for i := 0; i < inv.Size(); i++ {
+				stack, err := inv.Item(i)
+				if err != nil || stack.Empty() {
+					continue
+				}
+				name, _ := stack.Item().EncodeItem()
+				items = append(items, map[string]interface{}{
+					"slot":  i,
+					"name":  name,
+					"count": stack.Count(),
+				})
+			}
+			return items
+		},
+
+		// count(nombre) — retorna la cantidad total del item dado en el inventario.
+		"count": func(itemName string) int {
+			it, ok := world.ItemByName(itemName, 0)
+			if !ok {
+				return 0
+			}
+			total := 0
+			for i := 0; i < inv.Size(); i++ {
+				stack, err := inv.Item(i)
+				if err != nil || stack.Empty() {
+					continue
+				}
+				if stack.Item() == it {
+					total += stack.Count()
+				}
+			}
+			return total
+		},
+	}
 }
 
 // newEntityWrapper construye un mapa JS con métodos para interactuar con una entidad del mundo.
@@ -1101,6 +1218,29 @@ func (l *Loader) registerWorld(vm *goja.Runtime, p *ScriptPlugin) {
 				name = n
 			})
 			return name
+		},
+
+		// getInventory(x, y, z) — retorna el inventario del bloque contenedor en la posición dada.
+		// Funciona con: cofre, barril, tolva, horno, etc.
+		// Retorna null si el bloque no tiene inventario.
+		"getInventory": func(x, y, z int) interface{} {
+			if p.srv == nil {
+				return nil
+			}
+			var inv *inventory.Inventory
+			p.srv.World().Exec(func(tx *world.Tx) {
+				b := tx.Block(cube.Pos{x, y, z})
+				type container interface {
+					Inventory(*world.Tx, cube.Pos) *inventory.Inventory
+				}
+				if c, ok := b.(container); ok {
+					inv = c.Inventory(tx, cube.Pos{x, y, z})
+				}
+			})
+			if inv == nil {
+				return nil
+			}
+			return newInventoryWrapper(inv)
 		},
 
 		// getHighestBlock(x, z) — retorna la Y del bloque más alto en las coordenadas X,Z dadas.

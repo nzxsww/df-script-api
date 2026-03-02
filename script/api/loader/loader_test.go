@@ -930,6 +930,123 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	plugins[0].OnEnable()
 }
 
+// --- Tests de Inventory API ---
+
+func TestLoader_World_GetInventory_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: InvAPIPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    if (typeof world.getInventory !== "function") throw new Error("world.getInventory no es función");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_World_GetInventory_NoServer_ReturnsNull(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: InvNullPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    var inv = world.getInventory(0, 64, 0);
+    if (inv !== null) throw new Error("sin servidor getInventory debe retornar null");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Player_GetInventory_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: PlayerInvPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    events.on("PlayerJoin", function(event) {
+        var p = event.getPlayer();
+        if (typeof p.getInventory !== "function") throw new Error("player.getInventory no es función");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Command_GetInventory_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: CmdInvPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    commands.register("testinv", "test", function(player, args) {
+        if (typeof world.getInventory !== "function") throw new Error("world.getInventory no es función desde comando");
+        if (typeof player.getInventory !== "function") throw new Error("player.getInventory no es función desde comando");
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
+func TestLoader_Command_WorldGetInventory_NoTx_ReturnsNull(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: CmdInvNullPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    commands.register("testinvnull", "test", function(player, args) {
+        var inv = world.getInventory(0, 64, 0);
+        // sin tx activo retorna null — no panic
+    });
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("world.getInventory sin tx causó panic: %v", r)
+		}
+	}()
+	plugins[0].OnEnable()
+}
+
 // --- Tests de Server API ---
 
 func TestLoader_Server_IsAvailable(t *testing.T) {

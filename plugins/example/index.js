@@ -881,6 +881,11 @@ function onEnable() {
         server.broadcast("§7[Scheduler] Jugadores online: §f" + server.getPlayerCount());
     });
 
+    // Test manual: colocar un bloque de oro en (0, 64, 0)
+    scheduler.run(function(world) {
+        world.setBlock(0, 64, 0, "minecraft:gold_block");
+    });
+
     // Guardar referencia si querés cancelarlo luego
     plugin._schedulerTask = schedulerTask;
 }

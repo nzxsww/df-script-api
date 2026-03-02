@@ -8,13 +8,37 @@ The simplest mode. Create a scoreboard, set its lines, and send it to a player.
 
 ```js
 var sb = scoreboard.create("§6§lMy Server");
-sb.setLine(0, "§7Players: 5");
-sb.setLine(1, "§7Map: Lobby");
-sb.setLine(2, "");
-sb.setLine(3, "§fplay.myserver.com");
+
+// Recommended way — setLines replaces all content at once
+sb.setLines([
+    "§7Players: 5",
+    "§7Map: Lobby",
+    "",
+    "§fplay.myserver.com"
+]);
 
 player.sendScoreboard(sb);
 player.removeScoreboard();
+```
+
+You can also build it conditionally with `push`:
+
+```js
+var sb = scoreboard.create("§6§lMy Server");
+var lines = [
+    "§7Players: " + server.getPlayerCount(),
+    "§7Mode: " + player.getGameMode()
+];
+
+if (player.getGameMode() === "creative") {
+    lines.push("§bCreative mode active");
+}
+
+lines.push("");
+lines.push("§fplay.myserver.com");
+
+sb.setLines(lines);
+player.sendScoreboard(sb);
 ```
 
 ::: warning
@@ -26,6 +50,7 @@ Modifying a scoreboard after sending it **does not update** what the player sees
 | Method | Returns | Description |
 |---|---|---|
 | `scoreboard.create(title)` | `Scoreboard` | Creates a new scoreboard with the given title |
+| `sb.setLines(array)` | — | **Replaces all content** with the given array. The recommended way for dynamic content |
 | `sb.setLine(index, text)` | `boolean` | Sets text on line `index` (0–14). Fills empty lines if index exceeds current length |
 | `sb.addLine(text)` | `boolean` | Appends a line at the end. Returns `false` if the 15-line limit is exceeded |
 | `sb.removeLine(index)` | `boolean` | Removes the line at the given index |

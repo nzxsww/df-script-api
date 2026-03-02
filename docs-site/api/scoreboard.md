@@ -8,13 +8,37 @@ El modo más simple. Creás un scoreboard, le ponés líneas y lo enviás a un j
 
 ```js
 var sb = scoreboard.create("§6§lMi Servidor");
-sb.setLine(0, "§7Jugadores: 5");
-sb.setLine(1, "§7Mapa: Lobby");
-sb.setLine(2, "");
-sb.setLine(3, "§fplay.miservidor.com");
+
+// Forma recomendada — setLines reemplaza todo el contenido de una vez
+sb.setLines([
+    "§7Jugadores: 5",
+    "§7Mapa: Lobby",
+    "",
+    "§fplay.miservidor.com"
+]);
 
 player.sendScoreboard(sb);
 player.removeScoreboard();
+```
+
+También podés construirlo condicionalmente con `push`:
+
+```js
+var sb = scoreboard.create("§6§lMi Servidor");
+var lines = [
+    "§7Jugadores: " + server.getPlayerCount(),
+    "§7Modo: " + player.getGameMode()
+];
+
+if (player.getGameMode() === "creative") {
+    lines.push("§bModo creativo activo");
+}
+
+lines.push("");
+lines.push("§fplay.miservidor.com");
+
+sb.setLines(lines);
+player.sendScoreboard(sb);
 ```
 
 ::: warning
@@ -26,6 +50,7 @@ Modificar un scoreboard después de enviarlo **no actualiza** lo que ve el jugad
 | Método | Retorna | Descripción |
 |---|---|---|
 | `scoreboard.create(titulo)` | `Scoreboard` | Crea un nuevo scoreboard con el título dado |
+| `sb.setLines(array)` | — | **Reemplaza todo el contenido** con el array dado. La forma recomendada para contenido dinámico |
 | `sb.setLine(index, texto)` | `boolean` | Setea el texto en la línea `index` (0–14). Rellena con líneas vacías si el índice supera las actuales |
 | `sb.addLine(texto)` | `boolean` | Agrega una línea al final. Retorna `false` si se superan las 15 líneas |
 | `sb.removeLine(index)` | `boolean` | Elimina la línea en el índice dado |

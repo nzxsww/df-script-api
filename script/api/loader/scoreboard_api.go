@@ -329,7 +329,9 @@ func extractPlayerFromJS(playerObj goja.Value) *dfplayer.Player {
 	return pl
 }
 
-// extractBoardFromJS extrae el *scoreboard.Scoreboard de un scoreboardWrapper JS.
+// extractBoardFromJS extrae el *scoreboard.Scoreboard actual de un scoreboardWrapper JS.
+// Lee "_boardPtr" (**scoreboard.Scoreboard) para obtener siempre el board vigente,
+// incluso si setLines() lo reemplazó internamente.
 func extractBoardFromJS(sbVal goja.Value) *scoreboard.Scoreboard {
 	if sbVal == nil || goja.IsNull(sbVal) || goja.IsUndefined(sbVal) {
 		return nil
@@ -338,29 +340,31 @@ func extractBoardFromJS(sbVal goja.Value) *scoreboard.Scoreboard {
 	if !ok {
 		return nil
 	}
-	raw := obj.Get("_board")
+	raw := obj.Get("_boardPtr")
 	if raw == nil {
 		return nil
 	}
-	board, ok := raw.Export().(*scoreboard.Scoreboard)
+	boardPtr, ok := raw.Export().(**scoreboard.Scoreboard)
 	if !ok {
 		return nil
 	}
-	return board
+	return *boardPtr
 }
 
 // newScoreboardWrapper construye el objeto JS que envuelve un *scoreboard.Scoreboard.
-// El scoreboard de Dragonfly es inmutable después de enviarse — siempre reenviar con sendScoreboard.
+// Usa un puntero al puntero (**scoreboard.Scoreboard) para que setLines() pueda
+// reemplazar el board completo sin dejar líneas huérfanas.
 func newScoreboardWrapper(board *scoreboard.Scoreboard) map[string]interface{} {
+	// boardPtr permite que setLines() reemplace el board interno apuntando a uno nuevo.
+	boardPtr := &board
+
 	return map[string]interface{}{
 		// getTitle() — retorna el título del scoreboard.
 		"getTitle": func() string {
-			return board.Name()
+			return (*boardPtr).Name()
 		},
 
 		// setLine(index, text) — setea el texto de la línea en el índice dado (0-14).
-		// Si el índice supera las líneas actuales, rellena con líneas vacías.
-		// Panics internamente si index < 0 o index >= 15 — lo capturamos con recover.
 		"setLine": func(index int, text string) bool {
 			if index < 0 || index >= 15 {
 				fmt.Printf("[scoreboardWrapper] setLine: índice fuera de rango %d (debe ser 0-14)\n", index)
@@ -371,7 +375,7 @@ func newScoreboardWrapper(board *scoreboard.Scoreboard) map[string]interface{} {
 					fmt.Printf("[scoreboardWrapper] setLine: error interno: %v\n", r)
 				}
 			}()
-			board.Set(index, text)
+			(*boardPtr).Set(index, text)
 			return true
 		},
 
@@ -386,14 +390,14 @@ func newScoreboardWrapper(board *scoreboard.Scoreboard) map[string]interface{} {
 					fmt.Printf("[scoreboardWrapper] removeLine: error interno: %v\n", r)
 				}
 			}()
-			board.Remove(index)
+			(*boardPtr).Remove(index)
 			return true
 		},
 
 		// addLine(text) — agrega una línea al final del scoreboard.
 		// Retorna false si ya se alcanzaron las 15 líneas máximas.
 		"addLine": func(text string) bool {
-			_, err := board.WriteString(text)
+			_, err := (*boardPtr).WriteString(text)
 			if err != nil {
 				fmt.Printf("[scoreboardWrapper] addLine: %v\n", err)
 				return false
@@ -401,33 +405,70 @@ func newScoreboardWrapper(board *scoreboard.Scoreboard) map[string]interface{} {
 			return true
 		},
 
+		// setLines(array) — reemplaza TODO el contenido del scoreboard con el array dado.
+		// Recrea el board internamente para garantizar que no queden líneas huérfanas.
+		// Máximo 15 líneas — las que superen el límite se ignoran con un aviso.
+		// Ejemplo:
+		//   var lines = ["§7Jugadores: 5", "§7Mapa: Lobby"];
+		//   if (condicion) lines.push("§aExtra");
+		//   sb.setLines(lines);
+		"setLines": func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				return goja.Undefined()
+			}
+			exported := call.Argument(0).Export()
+			var lines []string
+			switch v := exported.(type) {
+			case []interface{}:
+				for _, item := range v {
+					lines = append(lines, fmt.Sprint(item))
+				}
+			case []string:
+				lines = v
+			default:
+				fmt.Printf("[scoreboardWrapper] setLines: el argumento debe ser un array\n")
+				return goja.Undefined()
+			}
+			if len(lines) > 15 {
+				fmt.Printf("[scoreboardWrapper] setLines: máximo 15 líneas, se truncará\n")
+				lines = lines[:15]
+			}
+			// Recrear el board con el mismo título para limpiar las líneas anteriores
+			title := (*boardPtr).Name()
+			fresh := scoreboard.New(title)
+			for i, line := range lines {
+				fresh.Set(i, line)
+			}
+			*boardPtr = fresh
+			return goja.Undefined()
+		},
+
 		// getLines() — retorna todas las líneas actuales como array de strings.
 		"getLines": func() []string {
-			return board.Lines()
+			return (*boardPtr).Lines()
 		},
 
 		// getLineCount() — retorna la cantidad de líneas actuales.
 		"getLineCount": func() int {
-			return len(board.Lines())
+			return len((*boardPtr).Lines())
 		},
 
 		// setDescending() — invierte el orden de las líneas al mostrarse.
 		"setDescending": func() {
-			board.SetDescending()
+			(*boardPtr).SetDescending()
 		},
 
 		// isDescending() — retorna si el scoreboard está en orden descendente.
 		"isDescending": func() bool {
-			return board.Descending()
+			return (*boardPtr).Descending()
 		},
 
 		// removePadding() — elimina el padding automático de espacios en cada línea.
 		"removePadding": func() {
-			board.RemovePadding()
+			(*boardPtr).RemovePadding()
 		},
 
 		// sendTo(player) — método de conveniencia: envía este scoreboard al jugador dado.
-		// Equivalente a player.sendScoreboard(sb).
 		"sendTo": func(playerObj goja.Value) {
 			if playerObj == nil || goja.IsNull(playerObj) || goja.IsUndefined(playerObj) {
 				fmt.Printf("[scoreboardWrapper] sendTo: jugador nulo\n")
@@ -436,14 +477,15 @@ func newScoreboardWrapper(board *scoreboard.Scoreboard) map[string]interface{} {
 			if obj, ok := playerObj.(*goja.Object); ok {
 				if raw := obj.Get("_player"); raw != nil {
 					if pl, ok := raw.Export().(*dfplayer.Player); ok {
-						pl.SendScoreboard(board)
+						pl.SendScoreboard(*boardPtr)
 					}
 				}
 			}
 		},
 
-		// _board — referencia interna al *scoreboard.Scoreboard para uso desde Go.
-		"_board": board,
+		// _boardPtr — referencia interna al **scoreboard.Scoreboard para uso desde Go.
+		// Usamos el puntero al puntero para que extractBoardFromJS siempre lea el board actual.
+		"_boardPtr": boardPtr,
 	}
 }
 

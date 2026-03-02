@@ -63,7 +63,7 @@ menu.onClick(function(player, item, click) {
     player.sendMessage("Click: " + click + " on " + item.name);
 });
 
-// click can be: left_click, right_click, shift_click, drop, swap
+// click can be: left_click, right_click, drop
 
 menu.onClose(function(player) {
     player.sendMessage("Menu closed");

@@ -1177,6 +1177,7 @@ func (l *Loader) loadScript(p *ScriptPlugin, scriptFile string) error {
 	l.registerItemAPI(vm, p)
 	l.registerVirtualInventories(vm, p)
 	l.registerScoreboardAPI(vm, p)
+	l.registerScheduler(vm, p)
 
 	// Leer y ejecutar el script
 	scriptContent, err := os.ReadFile(scriptFile)
@@ -1211,6 +1212,144 @@ func (l *Loader) registerConsole(vm *goja.Runtime, p *ScriptPlugin) {
 		},
 		"error": func(args ...interface{}) {
 			fmt.Println(append([]interface{}{prefix + " [ERROR]"}, args...)...)
+		},
+	})
+}
+
+// registerTimers expone setTimeout y setInterval con la firma correcta de JS: fn, delay.
+// registerScheduler expone un scheduler seguro con Tx para ejecutar tareas JS en el servidor.
+// API JS:
+//  scheduler.run(fn)
+//  scheduler.runLater(ticks, fn)
+//  scheduler.runRepeating(ticks, fn) -> task.cancel()
+func (l *Loader) registerScheduler(vm *goja.Runtime, p *ScriptPlugin) {
+	const tickDuration = 50 * time.Millisecond
+
+	executeCallback := func(fn goja.Callable) {
+		if fn == nil {
+			return
+		}
+		var callErr error
+		if p.srv == nil {
+			p.withVMLock(func() {
+				_, callErr = fn(goja.Undefined(), goja.Undefined(), goja.Undefined())
+			})
+		} else {
+			p.srv.World().Exec(func(tx *world.Tx) {
+				p.withVMLock(func() {
+					worldMap := command.BuildWorldMapFromTx(vm, p.srv, tx)
+					serverMap := command.BuildServerMapFromTx(vm, p.srv, tx)
+					worldVal := vm.ToValue(worldMap)
+					serverVal := vm.ToValue(serverMap)
+					// Actualizar globals durante la ejecución para compatibilidad
+					prevWorld := vm.Get("world")
+					prevServer := vm.Get("server")
+					vm.Set("world", worldVal)
+					vm.Set("server", serverVal)
+					_, callErr = fn(goja.Undefined(), worldVal, serverVal)
+					// Restaurar globals anteriores para no pisar contexto actual
+					if prevWorld != nil {
+						vm.Set("world", prevWorld)
+					}
+					if prevServer != nil {
+						vm.Set("server", prevServer)
+					}
+				})
+			})
+		}
+		if callErr != nil {
+			fmt.Printf("[%s] scheduler error: %v\n", p.name, callErr)
+		}
+	}
+
+	makeCancelFn := func(stopCh chan struct{}) func() {
+		var once sync.Once
+		return func() {
+			once.Do(func() {
+				close(stopCh)
+			})
+		}
+	}
+
+	vm.Set("scheduler", map[string]interface{}{
+		"run": func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) < 1 {
+				return goja.Undefined()
+			}
+			fn, ok := goja.AssertFunction(call.Argument(0))
+			if !ok {
+				fmt.Printf("[%s] scheduler.run: argumento debe ser función\n", p.name)
+				return goja.Undefined()
+			}
+			stopCh := make(chan struct{})
+			cancel := makeCancelFn(stopCh)
+			go func() {
+				select {
+				case <-stopCh:
+					return
+				default:
+					// Ejecutar en el siguiente tick para consistencia
+					time.Sleep(tickDuration)
+					executeCallback(fn)
+				}
+			}()
+			return vm.ToValue(map[string]interface{}{"cancel": cancel})
+		},
+		"runLater": func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) < 2 {
+				return goja.Undefined()
+			}
+			ticks := int(call.Argument(0).ToInteger())
+			if ticks < 1 {
+				ticks = 1
+			}
+			fn, ok := goja.AssertFunction(call.Argument(1))
+			if !ok {
+				fmt.Printf("[%s] scheduler.runLater: argumento debe ser función\n", p.name)
+				return goja.Undefined()
+			}
+			delay := time.Duration(ticks) * tickDuration
+			stopCh := make(chan struct{})
+			cancel := makeCancelFn(stopCh)
+			go func() {
+				select {
+				case <-stopCh:
+					return
+				case <-time.After(delay):
+					executeCallback(fn)
+				}
+			}()
+			return vm.ToValue(map[string]interface{}{"cancel": cancel})
+		},
+		"runRepeating": func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) < 2 {
+				return goja.Undefined()
+			}
+			ticks := int(call.Argument(0).ToInteger())
+			if ticks < 1 {
+				ticks = 1
+			}
+			fn, ok := goja.AssertFunction(call.Argument(1))
+			if !ok {
+				fmt.Printf("[%s] scheduler.runRepeating: argumento debe ser función\n", p.name)
+				return goja.Undefined()
+			}
+			interval := time.Duration(ticks) * tickDuration
+			ticker := time.NewTicker(interval)
+			stopCh := make(chan struct{})
+			cancel := makeCancelFn(stopCh)
+			go func() {
+				for {
+					select {
+					case <-stopCh:
+						ticker.Stop()
+						return
+					case <-ticker.C:
+						executeCallback(fn)
+					}
+				}
+			}()
+			return vm.ToValue(map[string]interface{}{"cancel": cancel})
 		},
 	})
 }

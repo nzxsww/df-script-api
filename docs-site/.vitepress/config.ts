@@ -47,6 +47,7 @@ export default defineConfig({
               { text: 'Comandos', link: '/api/commands' },
               { text: 'Configuración YAML', link: '/api/config' },
               { text: 'Scoreboard', link: '/api/scoreboard' },
+              { text: 'Scheduler', link: '/api/scheduler' },
               { text: 'Timers', link: '/api/timers' },
               { text: 'Console', link: '/api/console' },
             ]
@@ -110,6 +111,7 @@ export default defineConfig({
               { text: 'Commands', link: '/en/api/commands' },
               { text: 'YAML Config', link: '/en/api/config' },
               { text: 'Scoreboard', link: '/en/api/scoreboard' },
+              { text: 'Scheduler', link: '/en/api/scheduler' },
               { text: 'Timers', link: '/en/api/timers' },
               { text: 'Console', link: '/en/api/console' },
             ]

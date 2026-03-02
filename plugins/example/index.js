@@ -874,6 +874,15 @@ function onEnable() {
     });
 
     console.log("Live scoreboard HUD iniciado (100ms)");
+
+    // === Scheduler API demo ===
+    // Broadcast cada 5 segundos usando Tx segura
+    var schedulerTask = scheduler.runRepeating(100, function(world, server) {
+        server.broadcast("§7[Scheduler] Jugadores online: §f" + server.getPlayerCount());
+    });
+
+    // Guardar referencia si querés cancelarlo luego
+    plugin._schedulerTask = schedulerTask;
 }
 
 function onDisable() {
@@ -881,6 +890,12 @@ function onDisable() {
     if (liveHUD !== null) {
         liveHUD.stop();
         console.log("Live scoreboard HUD detenido.");
+    }
+
+    // Cancelar tarea del scheduler si existe
+    if (plugin._schedulerTask && plugin._schedulerTask.cancel) {
+        plugin._schedulerTask.cancel();
+        console.log("Scheduler task cancelado.");
     }
     // Guardar config al desactivar (por si se modificó algo en runtime)
     config.save();

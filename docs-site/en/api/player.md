@@ -236,6 +236,8 @@ player.removeScoreboard();
 
 See the [Scoreboard API](/en/api/scoreboard) for full documentation including ScoreboardManager and Live Scoreboard.
 
+If you need to read the world or call `server.getPlayers()` in scheduled tasks, use the [Scheduler API](/en/api/scheduler), which runs with a safe Tx.
+
 ## Commands
 
 | Method | Description |

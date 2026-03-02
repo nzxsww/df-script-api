@@ -59,9 +59,11 @@ menu.pattern([
     x: { name: "minecraft:black_stained_glass_pane", count: 1 }
 });
 
-menu.onClick(function(player, item) {
-    player.sendMessage("Click en: " + item.name);
+menu.onClick(function(player, item, click) {
+    player.sendMessage("Click: " + click + " en " + item.name);
 });
+
+// click puede ser: left_click, right_click, shift_click, drop, swap
 
 menu.onClose(function(player) {
     player.sendMessage("Menú cerrado");

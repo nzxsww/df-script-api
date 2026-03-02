@@ -1075,7 +1075,7 @@ main: index.js`,
     ], {
         x: { name: "minecraft:gold_ingot", count: 3 }
     });
-    menu.onClick(function(player, item) {});
+    menu.onClick(function(player, item, click) {});
     menu.onClose(function(player) {});
     menu.open("Notch");
     menu.update("Notch");

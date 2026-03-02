@@ -399,8 +399,8 @@ function onEnable() {
             { slot: 2, name: "minecraft:emerald", count: 3 },
             { slot: 4, name: "minecraft:nether_star", count: 1 }
         ]);
-        menu.onClick(function(p, item) {
-            p.sendMessage("§eClick en: §f" + item.name + " x" + item.count);
+        menu.onClick(function(p, item, click) {
+            p.sendMessage("§eClick: §f" + click + " §7- §f" + item.name + " x" + item.count);
         });
         menu.onClose(function(p) {
             p.sendMessage("§7Menú cerrado");

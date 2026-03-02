@@ -34,7 +34,8 @@ func (m menuSubmittable) Submit(p *dfplayer.Player, it item.Stack) {
 		"name":  name,
 		"count": it.Count(),
 	}
-	if _, err := m.wrapper.onClick(goja.Undefined(), m.wrapper.vm.ToValue(newPlayerWrapper(p)), m.wrapper.vm.ToValue(jsItem)); err != nil {
+	clickType := getLastClickType(p)
+	if _, err := m.wrapper.onClick(goja.Undefined(), m.wrapper.vm.ToValue(newPlayerWrapper(p)), m.wrapper.vm.ToValue(jsItem), m.wrapper.vm.ToValue(clickType)); err != nil {
 		fmt.Printf("[%s] Error en menu.onClick: %v\n", m.wrapper.plugin.name, err)
 	}
 }

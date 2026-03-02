@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/bedrock-gophers/intercept/intercept"
 	"github.com/df-mc/dragonfly/server"
 	"github.com/df-mc/dragonfly/server/player/chat"
 	"github.com/nzxsww/dragonfly-script-api/script/api"
@@ -42,6 +43,7 @@ func main() {
 	srv.Listen()
 	h := api.NewHandler(srv, pluginMgr)
 	for p := range srv.Accept() {
+		intercept.Intercept(p)
 		// Asignar el handler de eventos al jugador y disparar PlayerJoinEvent
 		// Los plugins JS ya están suscritos directamente al sistema de eventos
 		p.Handle(h)

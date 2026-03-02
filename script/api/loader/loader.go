@@ -869,6 +869,7 @@ func (l *Loader) loadScript(p *ScriptPlugin, scriptFile string) error {
 	l.registerConfig(vm, p)
 	l.registerWorld(vm, p)
 	l.registerServer(vm, p)
+	l.registerVirtualInventories(vm, p)
 
 	// Leer y ejecutar el script
 	scriptContent, err := os.ReadFile(scriptFile)

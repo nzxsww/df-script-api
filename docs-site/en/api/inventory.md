@@ -33,6 +33,39 @@ var inv = player.getInventory();
 | `getItems()` | `{slot, name, count}[]` | Array of all non-empty slots |
 | `setContents(items)` | `boolean` | Replace all contents. `items`: array of `{slot, name, count}`. Unspecified slots are cleared |
 
+## Virtual inventories (menus)
+
+The API includes Bukkit-style virtual menus using the `inv` library.
+
+```js
+var menu = inventory.createMenu({
+    title: "§aVirtual Menu",
+    type: "chest",   // chest | hopper | barrel | dropper | ender_chest
+    size: 27          // 9, 18, 27, 36, 45, 54 (chest only)
+});
+
+menu.setItems([
+    { slot: 0, name: "minecraft:diamond", count: 1 },
+    { slot: 1, name: "minecraft:gold_ingot", count: 8 }
+]);
+
+menu.onClick(function(player, item) {
+    player.sendMessage("Clicked: " + item.name);
+});
+
+menu.onClose(function(player) {
+    player.sendMessage("Menu closed");
+});
+
+menu.open(player);      // open
+menu.update(player);    // update
+menu.close(player);     // close
+```
+
+Notes:
+- `menu.open/update/close` accept a **player wrapper** or a **player name** (string).
+- Menus are client-side (not real blocks in the world).
+
 ## Examples
 
 ### Inspecting a chest

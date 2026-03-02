@@ -3,9 +3,13 @@ module github.com/nzxsww/dragonfly-script-api
 go 1.25.5
 
 require (
+	github.com/bedrock-gophers/intercept v0.2.4 // indirect
+	github.com/bedrock-gophers/inv v0.3.0 // indirect
+	github.com/bedrock-gophers/unsafe v0.0.0-20241207074844-086072b710f5 // indirect
 	github.com/brentp/intintmap v0.0.0-20190211203843-30dc0ade9af9 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
+	github.com/df-mc/atomic v1.10.0 // indirect
 	github.com/df-mc/dragonfly v0.10.10 // indirect
 	github.com/df-mc/go-playfab v1.0.0 // indirect
 	github.com/df-mc/go-xsapi v1.0.1 // indirect

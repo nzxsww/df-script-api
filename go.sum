@@ -1,9 +1,17 @@
+github.com/bedrock-gophers/intercept v0.2.4 h1:uLuUdT/1XEQoozExbvgUt8DwYkYkljdFh+XIFC1Fzb4=
+github.com/bedrock-gophers/intercept v0.2.4/go.mod h1:UlhMbzIqx/jQyeSBF9QQwROUCcp5Vhvs0QhK959a87I=
+github.com/bedrock-gophers/inv v0.3.0 h1:pJvIWFnDiCkrRTQbz6lNlWyTDUobfOUtoZ5PEDoLqak=
+github.com/bedrock-gophers/inv v0.3.0/go.mod h1:B2lp5HLJRWRUYA+jX5QolGkmmikx1Gqv6uk/iEsiGWk=
+github.com/bedrock-gophers/unsafe v0.0.0-20241207074844-086072b710f5 h1:IQNPS8APoncJfG6RX3RrKmsIXeJVjcQxaOLvceU6vnA=
+github.com/bedrock-gophers/unsafe v0.0.0-20241207074844-086072b710f5/go.mod h1:PBvWHoSHnYJhwS+hqmYQJMzmnBzRyPcAPJ6l47DJdow=
 github.com/brentp/intintmap v0.0.0-20190211203843-30dc0ade9af9 h1:/G0ghZwrhou0Wq21qc1vXXMm/t/aKWkALWwITptKbE0=
 github.com/brentp/intintmap v0.0.0-20190211203843-30dc0ade9af9/go.mod h1:TOk10ahXejq9wkEaym3KPRNeuR/h5Jx+s8QRWIa2oTM=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/coreos/go-oidc/v3 v3.17.0 h1:hWBGaQfbi0iVviX4ibC7bk8OKT5qNr4klBaCHVNvehc=
 github.com/coreos/go-oidc/v3 v3.17.0/go.mod h1:wqPbKFrVnE90vty060SB40FCJ8fTHTxSwyXJqZH+sI8=
+github.com/df-mc/atomic v1.10.0 h1:0ZuxBKwR/hxcFGorKiHIp+hY7hgY+XBTzhCYD2NqSEg=
+github.com/df-mc/atomic v1.10.0/go.mod h1:Gw9rf+rPIbydMjA329Jn4yjd/O2c/qusw3iNp4tFGSc=
 github.com/df-mc/dragonfly v0.10.10 h1:l42JADG32Jlh//0qjhw0M6/11TgGuhoslkjWipw+/Ek=
 github.com/df-mc/dragonfly v0.10.10/go.mod h1:GswnEb3ZqH8wY+rBdbW603QlmFssBIBJk9yActVUAho=
 github.com/df-mc/go-playfab v1.0.0 h1:6gVukk3aQbJ934GJFdcZJHVIw9lhauK+KHOevbwJA10=

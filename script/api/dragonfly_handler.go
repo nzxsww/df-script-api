@@ -4,6 +4,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/bedrock-gophers/inv/inv"
 	"github.com/df-mc/dragonfly/server"
 	"github.com/df-mc/dragonfly/server/block/cube"
 	"github.com/df-mc/dragonfly/server/cmd"
@@ -82,6 +83,7 @@ func (h *dragonflyHandler) HandleBlockPlace(ctx *dfplayer.Context, pos cube.Pos,
 }
 
 func (h *dragonflyHandler) HandleQuit(p *dfplayer.Player) {
+	inv.CloseContainer(p)
 	e := player.NewPlayerQuitEvent(p)
 	h.pluginMgr.CallEvent(e)
 }

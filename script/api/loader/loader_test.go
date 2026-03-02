@@ -1047,6 +1047,44 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	plugins[0].OnEnable()
 }
 
+// --- Tests de Virtual Inventory API ---
+
+func TestLoader_VirtualInventory_CreateMenu_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: MenuPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    if (typeof inventory === "undefined") throw new Error("inventory global no está definido");
+    if (typeof inventory.createMenu !== "function") throw new Error("inventory.createMenu no es función");
+
+    var menu = inventory.createMenu({ title: "Test", type: "chest", size: 27 });
+    if (typeof menu.setItems !== "function") throw new Error("menu.setItems no es función");
+    if (typeof menu.onClick !== "function") throw new Error("menu.onClick no es función");
+    if (typeof menu.onClose !== "function") throw new Error("menu.onClose no es función");
+    if (typeof menu.open !== "function") throw new Error("menu.open no es función");
+    if (typeof menu.update !== "function") throw new Error("menu.update no es función");
+    if (typeof menu.close !== "function") throw new Error("menu.close no es función");
+
+    menu.setItems([{ slot: 0, name: "minecraft:diamond", count: 1 }]);
+    menu.onClick(function(player, item) {});
+    menu.onClose(function(player) {});
+    menu.open("Notch");
+    menu.update("Notch");
+    menu.close("Notch");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
 // --- Tests de Server API ---
 
 func TestLoader_Server_IsAvailable(t *testing.T) {

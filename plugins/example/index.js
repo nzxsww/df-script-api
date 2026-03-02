@@ -389,6 +389,42 @@ function onEnable() {
         console.log("[TEST] broadcast: " + msg);
     });
 
+    // --- Comandos de test Virtual Inventory API ---
+
+    commands.register("menutest", "Abre un menú virtual de prueba", function(player, args) {
+        var menu = inventory.createMenu({ title: "§aMenu Virtual", type: "chest", size: 27 });
+        menu.setItems([
+            { slot: 0, name: "minecraft:diamond", count: 1 },
+            { slot: 1, name: "minecraft:gold_ingot", count: 8 },
+            { slot: 2, name: "minecraft:emerald", count: 3 },
+            { slot: 4, name: "minecraft:nether_star", count: 1 }
+        ]);
+        menu.onClick(function(p, item) {
+            p.sendMessage("§eClick en: §f" + item.name + " x" + item.count);
+        });
+        menu.onClose(function(p) {
+            p.sendMessage("§7Menú cerrado");
+        });
+        menu.open(player);
+        console.log("[TEST] inventory.createMenu abierto para " + player.getName());
+    });
+
+    commands.register("menutestupdate", "Actualiza el menú virtual de prueba", function(player, args) {
+        var menu = inventory.createMenu({ title: "§bMenu Actualizado", type: "chest", size: 27 });
+        menu.setItems([
+            { slot: 0, name: "minecraft:iron_ingot", count: 16 },
+            { slot: 1, name: "minecraft:lapis_lazuli", count: 32 }
+        ]);
+        menu.update(player);
+        console.log("[TEST] inventory.createMenu update para " + player.getName());
+    });
+
+    commands.register("menutestclose", "Cierra el menú virtual del jugador", function(player, args) {
+        var menu = inventory.createMenu({ title: "§cCerrar", type: "chest", size: 27 });
+        menu.close(player);
+        console.log("[TEST] inventory.createMenu close para " + player.getName());
+    });
+
     // --- Comandos de test Inventory API ---
 
     commands.register("verinv", "Ver tu inventario", function(player, args) {

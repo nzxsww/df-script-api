@@ -367,8 +367,8 @@ func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]in
 			return true
 		},
 		// setItemStack(slot, item) — coloca un itemWrapper en el slot dado.
-		"setItemStack": func(slot int, itemObj map[string]interface{}) bool {
-			if raw, ok := itemObj["_stack"].(dfitem.Stack); ok {
+		"setItemStack": func(slot int, itemObj goja.Value) bool {
+			if raw, ok := extractStack(itemObj); ok {
 				return inv.SetItem(slot, raw) == nil
 			}
 			return false
@@ -388,8 +388,8 @@ func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]in
 		},
 		// addItemStack(item) — agrega un itemWrapper al inventario.
 		// Retorna la cantidad que NO pudo ser agregada.
-		"addItemStack": func(itemObj map[string]interface{}) int {
-			if raw, ok := itemObj["_stack"].(dfitem.Stack); ok {
+		"addItemStack": func(itemObj goja.Value) int {
+			if raw, ok := extractStack(itemObj); ok {
 				added, _ := inv.AddItem(raw)
 				return raw.Count() - added
 			}
@@ -450,8 +450,8 @@ func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]in
 					continue
 				}
 				slot, _ := m["slot"].(int64)
-				if raw, ok := m["item"].(map[string]interface{}); ok {
-					if stack, ok := raw["_stack"].(dfitem.Stack); ok {
+				if rawItem, ok := m["item"]; ok {
+					if stack, ok := extractStack(rawItem); ok {
 						_ = inv.SetItem(int(slot), stack)
 						continue
 					}
@@ -549,6 +549,21 @@ func enchantmentName(t dfitem.EnchantmentType) string {
 	name := strings.ToLower(t.Name())
 	name = strings.ReplaceAll(name, " ", "_")
 	return name
+}
+
+func extractStack(value interface{}) (dfitem.Stack, bool) {
+	switch v := value.(type) {
+	case goja.Value:
+		value = v.Export()
+	case *goja.Object:
+		value = v.Export()
+	}
+	if m, ok := value.(map[string]interface{}); ok {
+		if s, ok := m["_stack"].(dfitem.Stack); ok {
+			return s, true
+		}
+	}
+	return dfitem.Stack{}, false
 }
 
 func newItemWrapper(stack dfitem.Stack) map[string]interface{} {

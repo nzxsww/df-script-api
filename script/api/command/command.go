@@ -505,6 +505,21 @@ func enchantmentName(t dfitem.EnchantmentType) string {
 	return name
 }
 
+func extractStackFromJS(value interface{}) (dfitem.Stack, bool) {
+	switch v := value.(type) {
+	case goja.Value:
+		value = v.Export()
+	case *goja.Object:
+		value = v.Export()
+	}
+	if m, ok := value.(map[string]interface{}); ok {
+		if s, ok := m["_stack"].(dfitem.Stack); ok {
+			return s, true
+		}
+	}
+	return dfitem.Stack{}, false
+}
+
 func newItemWrapper(stack dfitem.Stack) map[string]interface{} {
 	return map[string]interface{}{
 		"getName": func() string {
@@ -592,8 +607,8 @@ func buildInventoryMap(inv *inventory.Inventory, invType string) map[string]inte
 			stack := dfitem.NewStack(it, count)
 			return inv.SetItem(slot, stack) == nil
 		},
-		"setItemStack": func(slot int, itemObj map[string]interface{}) bool {
-			if raw, ok := itemObj["_stack"].(dfitem.Stack); ok {
+		"setItemStack": func(slot int, itemObj interface{}) bool {
+			if raw, ok := extractStackFromJS(itemObj); ok {
 				return inv.SetItem(slot, raw) == nil
 			}
 			return false
@@ -607,8 +622,8 @@ func buildInventoryMap(inv *inventory.Inventory, invType string) map[string]inte
 			added, _ := inv.AddItem(stack)
 			return count - added
 		},
-		"addItemStack": func(itemObj map[string]interface{}) int {
-			if raw, ok := itemObj["_stack"].(dfitem.Stack); ok {
+		"addItemStack": func(itemObj interface{}) int {
+			if raw, ok := extractStackFromJS(itemObj); ok {
 				added, _ := inv.AddItem(raw)
 				return raw.Count() - added
 			}
@@ -669,8 +684,8 @@ func buildInventoryMap(inv *inventory.Inventory, invType string) map[string]inte
 					continue
 				}
 				slot, _ := m["slot"].(int64)
-				if rawItem, ok := m["item"].(map[string]interface{}); ok {
-					if stack, ok := rawItem["_stack"].(dfitem.Stack); ok {
+				if rawItem, ok := m["item"]; ok {
+					if stack, ok := extractStackFromJS(rawItem); ok {
 						_ = inv.SetItem(int(slot), stack)
 						continue
 					}

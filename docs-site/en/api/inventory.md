@@ -49,6 +49,16 @@ menu.setItems([
     { slot: 1, name: "minecraft:gold_ingot", count: 8 }
 ]);
 
+// You can also use patterns (Bukkit-like)
+menu.pattern([
+    "_________",
+    "__xxx____",
+    "__x_x____",
+    "__xxx____"
+], {
+    x: { name: "minecraft:black_stained_glass_pane", count: 1 }
+});
+
 menu.onClick(function(player, item) {
     player.sendMessage("Clicked: " + item.name);
 });

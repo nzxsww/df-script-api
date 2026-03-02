@@ -419,6 +419,20 @@ function onEnable() {
         console.log("[TEST] inventory.createMenu update para " + player.getName());
     });
 
+    commands.register("menupattern", "Abre un menú virtual con pattern", function(player, args) {
+        var menu = inventory.createMenu({ title: "§dPattern", type: "chest", size: 27 });
+        menu.pattern([
+            "_________",
+            "__xxx____",
+            "__x_x____",
+            "__xxx____"
+        ], {
+            x: { name: "minecraft:black_stained_glass_pane", count: 1 }
+        });
+        menu.open(player);
+        console.log("[TEST] inventory.createMenu pattern para " + player.getName());
+    });
+
     commands.register("menutestclose", "Cierra el menú virtual del jugador", function(player, args) {
         var menu = inventory.createMenu({ title: "§cCerrar", type: "chest", size: 27 });
         menu.close(player);

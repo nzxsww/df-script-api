@@ -1061,6 +1061,7 @@ main: index.js`,
 
     var menu = inventory.createMenu({ title: "Test", type: "chest", size: 27 });
     if (typeof menu.setItems !== "function") throw new Error("menu.setItems no es función");
+    if (typeof menu.pattern !== "function") throw new Error("menu.pattern no es función");
     if (typeof menu.onClick !== "function") throw new Error("menu.onClick no es función");
     if (typeof menu.onClose !== "function") throw new Error("menu.onClose no es función");
     if (typeof menu.open !== "function") throw new Error("menu.open no es función");
@@ -1068,6 +1069,12 @@ main: index.js`,
     if (typeof menu.close !== "function") throw new Error("menu.close no es función");
 
     menu.setItems([{ slot: 0, name: "minecraft:diamond", count: 1 }]);
+    menu.pattern([
+        "_________",
+        "__xxx____"
+    ], {
+        x: { name: "minecraft:gold_ingot", count: 3 }
+    });
     menu.onClick(function(player, item) {});
     menu.onClose(function(player) {});
     menu.open("Notch");

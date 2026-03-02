@@ -120,7 +120,43 @@ func menuWrapperToJS(vm *goja.Runtime, mw *menuWrapper) map[string]interface{} {
 				if int(slot) >= len(stacks) || int(slot) < 0 {
 					continue
 				}
-				stacks[int(slot)] = item.NewStack(it, int(countVal))
+				count := int(countVal)
+				if count <= 0 {
+					count = 1
+				}
+				stacks[int(slot)] = item.NewStack(it, count)
+			}
+			mw.menu = mw.menu.WithStacks(stacks...)
+		},
+		"pattern": func(rows []string, key map[string]map[string]interface{}) {
+			stacks := make([]item.Stack, mw.container.Size())
+			for r, row := range rows {
+				for c := 0; c < len(row); c++ {
+					ch := string(row[c])
+					entry, ok := key[ch]
+					if !ok {
+						continue
+					}
+					name, _ := entry["name"].(string)
+					if name == "" {
+						continue
+					}
+					countVal, _ := entry["count"].(int64)
+					count := int(countVal)
+					if count <= 0 {
+						count = 1
+					}
+					it, ok := world.ItemByName(name, 0)
+					if !ok {
+						fmt.Printf("[%s] menu.pattern: item desconocido '%s'\n", mw.plugin.name, name)
+						continue
+					}
+					slot := c + r*9
+					if slot < 0 || slot >= len(stacks) {
+						continue
+					}
+					stacks[slot] = item.NewStack(it, count)
+				}
 			}
 			mw.menu = mw.menu.WithStacks(stacks...)
 		},

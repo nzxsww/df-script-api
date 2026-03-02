@@ -66,9 +66,11 @@ func clickTypeFromAction(action protocol.StackRequestAction) (string, bool) {
 	case *protocol.SwapStackRequestAction:
 		return "swap", true
 	case *protocol.PlaceStackRequestAction:
-		// Shift click: mover del menu al inventario
-		if act.Source.Container.ContainerID == protocol.ContainerLevelEntity &&
-			(act.Destination.Container.ContainerID == protocol.ContainerInventory || act.Destination.Container.ContainerID == protocol.ContainerHotBar) {
+		// Shift click: mover entre menu (level entity) e inventario/hotbar
+		if (act.Source.Container.ContainerID == protocol.ContainerLevelEntity &&
+			(act.Destination.Container.ContainerID == protocol.ContainerInventory || act.Destination.Container.ContainerID == protocol.ContainerHotBar)) ||
+			((act.Source.Container.ContainerID == protocol.ContainerInventory || act.Source.Container.ContainerID == protocol.ContainerHotBar) &&
+				act.Destination.Container.ContainerID == protocol.ContainerLevelEntity) {
 			return "shift_click", true
 		}
 		if act.Count == 1 {
@@ -76,6 +78,13 @@ func clickTypeFromAction(action protocol.StackRequestAction) (string, bool) {
 		}
 		return "left_click", true
 	case *protocol.TakeStackRequestAction:
+		// Shift click puede llegar como Take entre contenedores
+		if (act.Source.Container.ContainerID == protocol.ContainerLevelEntity &&
+			(act.Destination.Container.ContainerID == protocol.ContainerInventory || act.Destination.Container.ContainerID == protocol.ContainerHotBar)) ||
+			((act.Source.Container.ContainerID == protocol.ContainerInventory || act.Source.Container.ContainerID == protocol.ContainerHotBar) &&
+				act.Destination.Container.ContainerID == protocol.ContainerLevelEntity) {
+			return "shift_click", true
+		}
 		if act.Count == 1 {
 			return "right_click", true
 		}

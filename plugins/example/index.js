@@ -396,12 +396,14 @@ function onEnable() {
             .setDisplayName("§bEspada Épica")
             .setLore(["§7Forjada en dragones", "§7Nivel 10"])
             .addEnchantment("sharpness", 5)
-            .addEnchantment("unbreaking", 3);
+            .addEnchantment("unbreaking", 3)
+            .addEnchantment("fire_aspect", 2)
+            .setDurability(10);
 
         var inv = player.getInventory();
         inv.addItemStack(it);
         player.sendMessage("§aItem personalizado agregado al inventario!");
-        console.log("[TEST] item.create + addEnchantment");
+        console.log("[TEST] item.create + enchants + displayname");
     });
 
     commands.register("iteminfo", "Muestra info del item en la mano", function(player, args) {

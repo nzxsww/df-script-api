@@ -553,17 +553,115 @@ func enchantmentName(t dfitem.EnchantmentType) string {
 
 func extractStack(value interface{}) (dfitem.Stack, bool) {
 	switch v := value.(type) {
-	case goja.Value:
-		value = v.Export()
 	case *goja.Object:
-		value = v.Export()
+		value = v
+	case goja.Value:
+		if obj, ok := v.(*goja.Object); ok {
+			value = obj
+		} else {
+			value = v.Export()
+		}
 	}
 	if m, ok := value.(map[string]interface{}); ok {
 		if s, ok := m["_stack"].(dfitem.Stack); ok {
 			return s, true
 		}
 	}
+	// Fallback: reconstruir desde métodos JS si es un objeto
+	if obj, ok := value.(*goja.Object); ok {
+		name := callString(obj, "getName")
+		count := callInt(obj, "getCount", 1)
+		if name == "" {
+			return dfitem.Stack{}, false
+		}
+		it, ok := world.ItemByName(name, 0)
+		if !ok {
+			return dfitem.Stack{}, false
+		}
+		stack := dfitem.NewStack(it, count)
+		if display := callString(obj, "getDisplayName"); display != "" {
+			stack = stack.WithCustomName(display)
+		}
+		if lore := callStringSlice(obj, "getLore"); len(lore) > 0 {
+			stack = stack.WithLore(lore...)
+		}
+		if dur := callInt(obj, "getDurability", 0); stack.MaxDurability() != -1 {
+			stack = stack.WithDurability(dur)
+		}
+		if ench := callEnchantments(obj); len(ench) > 0 {
+			stack = stack.WithEnchantments(ench...)
+		}
+		return stack, true
+	}
 	return dfitem.Stack{}, false
+}
+
+func callString(obj *goja.Object, method string) string {
+	if fnVal := obj.Get(method); fnVal != nil {
+		if fn, ok := goja.AssertFunction(fnVal); ok {
+			res, err := fn(obj)
+			if err == nil {
+				return res.String()
+			}
+		}
+	}
+	return ""
+}
+
+func callInt(obj *goja.Object, method string, def int) int {
+	if fnVal := obj.Get(method); fnVal != nil {
+		if fn, ok := goja.AssertFunction(fnVal); ok {
+			res, err := fn(obj)
+			if err == nil {
+				return int(res.ToInteger())
+			}
+		}
+	}
+	return def
+}
+
+func callStringSlice(obj *goja.Object, method string) []string {
+	if fnVal := obj.Get(method); fnVal != nil {
+		if fn, ok := goja.AssertFunction(fnVal); ok {
+			res, err := fn(obj)
+			if err == nil {
+				if arr, ok := res.Export().([]interface{}); ok {
+					out := make([]string, 0, len(arr))
+					for _, v := range arr {
+						out = append(out, fmt.Sprint(v))
+					}
+					return out
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func callEnchantments(obj *goja.Object) []dfitem.Enchantment {
+	if fnVal := obj.Get("getEnchantments"); fnVal != nil {
+		if fn, ok := goja.AssertFunction(fnVal); ok {
+			res, err := fn(obj)
+			if err == nil {
+				if arr, ok := res.Export().([]interface{}); ok {
+					var out []dfitem.Enchantment
+					for _, v := range arr {
+						m, ok := v.(map[string]interface{})
+						if !ok {
+							continue
+						}
+						name, _ := m["name"].(string)
+						lvlVal, _ := m["level"].(int64)
+						if et, ok := enchantmentTypeByName(name); ok {
+							out = append(out, dfitem.NewEnchantment(et, int(lvlVal)))
+						}
+					}
+					return out
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func newItemWrapper(stack dfitem.Stack) map[string]interface{} {
@@ -628,6 +726,7 @@ func newItemWrapper(stack dfitem.Stack) map[string]interface{} {
 			return newItemWrapper(stack.WithoutEnchantments(et))
 		},
 		"clone": func() map[string]interface{} { return newItemWrapper(stack) },
+		"_stack": stack,
 	}
 }
 

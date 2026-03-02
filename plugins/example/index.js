@@ -15,6 +15,9 @@ config.setDefaults({
 
 // === Ciclo de vida del plugin ===
 
+// liveHUD en scope global para que onDisable pueda detenerlo
+var liveHUD = null;
+
 function onEnable() {
     console.log("Plugin habilitado!");
 
@@ -820,9 +823,66 @@ function onEnable() {
     setTimeout(function() {
         console.log("El plugin lleva 30 segundos activo.");
     }, 30000);
+
+    // === Scoreboard Live con condiciones ===
+    // Se actualiza cada 100ms mostrando coords, vida, hambre y modo de juego.
+    // El callback recibe un sb fresco en cada tick — usa setLines() para reemplazar
+    // todo el contenido limpio. Las líneas cambian según el gamemode del jugador.
+    // Nota: server.getPlayers() abre su propia transacción internamente (seguro desde timers).
+
+    liveHUD = scoreboard.createLive("§6§lExamplePlugin", function(sb) {
+        var jugadores = server.getPlayers();
+        for (var i = 0; i < jugadores.length; i++) {
+            var p = jugadores[i];
+            var lines = [
+                "§7Jugador: §f" + p.getName(),
+                "§7Vida: §c" + Math.floor(p.getHealth()) + "§7/§c" + Math.floor(p.getMaxHealth()),
+                "§7Hambre: §e" + p.getFoodLevel() + "§7/§e20",
+                "§7Coords: §b" + Math.floor(p.getX()) + " §7/ §b" + Math.floor(p.getY()) + " §7/ §b" + Math.floor(p.getZ()),
+                ""
+            ];
+
+            // Líneas condicionales según el gamemode
+            var gm = p.getGameMode();
+            if (gm === "creative") {
+                lines.push("§bModo: §3Creativo");
+                lines.push("§7Vuelo: " + (p.isFlying() ? "§aActivo" : "§cInactivo"));
+            } else if (gm === "survival") {
+                lines.push("§aModo: §2Supervivencia");
+                lines.push("§7Exp: §a" + p.getExperienceLevel() + " §7niveles");
+            } else if (gm === "adventure") {
+                lines.push("§eModo: §6Aventura");
+            } else if (gm === "spectator") {
+                lines.push("§7Modo: §8Espectador");
+            }
+
+            lines.push("");
+            lines.push("§7play.miservidor.com");
+
+            sb.setLines(lines);
+        }
+    }, 100); // actualizar cada 100ms para coords fluidas
+
+    // Agregar jugadores al live al entrar, sacarlos al salir
+    events.on("PlayerJoin", function(event) {
+        liveHUD.addPlayer(event.getPlayer());
+        console.log("[Scoreboard] " + event.getPlayer().getName() + " agregado al live HUD");
+    });
+
+    events.on("PlayerQuit", function(event) {
+        liveHUD.removePlayer(event.getPlayer());
+        console.log("[Scoreboard] " + event.getPlayer().getName() + " removido del live HUD");
+    });
+
+    console.log("Live scoreboard HUD iniciado (100ms)");
 }
 
 function onDisable() {
+    // Detener el live scoreboard antes de cerrar
+    if (liveHUD !== null) {
+        liveHUD.stop();
+        console.log("Live scoreboard HUD detenido.");
+    }
     // Guardar config al desactivar (por si se modificó algo en runtime)
     config.save();
     console.log("Plugin deshabilitado — config guardada.");

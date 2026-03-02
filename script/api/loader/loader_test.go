@@ -1047,6 +1047,46 @@ module = { onEnable: onEnable, onDisable: function() {} };`,
 	plugins[0].OnEnable()
 }
 
+// --- Tests de Item API ---
+
+func TestLoader_Item_Create_IsAvailable(t *testing.T) {
+	dir := t.TempDir()
+	writePlugin(t, dir,
+		`name: ItemPlugin
+version: 1.0.0
+main: index.js`,
+		`function onEnable() {
+    if (typeof item === "undefined") throw new Error("item global no está definido");
+    if (typeof item.create !== "function") throw new Error("item.create no es función");
+
+    var it = item.create("minecraft:diamond", 5);
+    if (typeof it.getName !== "function") throw new Error("item.getName no es función");
+    if (typeof it.getCount !== "function") throw new Error("item.getCount no es función");
+    if (typeof it.setCount !== "function") throw new Error("item.setCount no es función");
+    if (typeof it.getDisplayName !== "function") throw new Error("item.getDisplayName no es función");
+    if (typeof it.setDisplayName !== "function") throw new Error("item.setDisplayName no es función");
+    if (typeof it.getLore !== "function") throw new Error("item.getLore no es función");
+    if (typeof it.setLore !== "function") throw new Error("item.setLore no es función");
+    if (typeof it.getDurability !== "function") throw new Error("item.getDurability no es función");
+    if (typeof it.setDurability !== "function") throw new Error("item.setDurability no es función");
+    if (typeof it.getMaxDurability !== "function") throw new Error("item.getMaxDurability no es función");
+    if (typeof it.isEnchanted !== "function") throw new Error("item.isEnchanted no es función");
+    if (typeof it.getEnchantments !== "function") throw new Error("item.getEnchantments no es función");
+    if (typeof it.addEnchantment !== "function") throw new Error("item.addEnchantment no es función");
+    if (typeof it.removeEnchantment !== "function") throw new Error("item.removeEnchantment no es función");
+    if (typeof it.clone !== "function") throw new Error("item.clone no es función");
+}
+module = { onEnable: onEnable, onDisable: function() {} };`,
+	)
+
+	ldr := newTestLoader(t, dir)
+	plugins, err := ldr.LoadAll()
+	if err != nil || len(plugins) != 1 {
+		t.Fatalf("LoadAll() falló: %v", err)
+	}
+	plugins[0].OnEnable()
+}
+
 // --- Tests de Virtual Inventory API ---
 
 func TestLoader_VirtualInventory_CreateMenu_IsAvailable(t *testing.T) {

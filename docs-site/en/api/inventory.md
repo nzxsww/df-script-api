@@ -23,15 +23,15 @@ var inv = player.getInventory();
 |---|---|---|
 | `getType()` | `string` | Inventory type: `"player"`, `"chest"`, `"barrel"`, `"hopper"`, `"furnace"`, `"blast_furnace"`, `"smoker"`, `"brewing_stand"`, `"container"` |
 | `getSize()` | `number` | Total number of slots in the inventory |
-| `getItem(slot)` | `{name, count}\|null` | Item in the given slot. `null` if empty |
+| `getItem(slot)` | `item\|null` | Item in the given slot (Item object). `null` if empty |
 | `setItem(slot, name, count)` | `boolean` | Place an item in the given slot. Returns `true` on success |
 | `addItem(name, count)` | `number` | Add to the first available slot. Returns the amount that **could not** be added (0 = full success) |
 | `removeItem(name, count)` | `boolean` | Remove the given amount of the item. Returns `true` on success |
 | `clear()` | — | Empty all slots in the inventory |
 | `contains(name)` | `boolean` | `true` if the inventory contains at least 1 of the given item |
 | `count(name)` | `number` | Total count of the given item across all slots |
-| `getItems()` | `{slot, name, count}[]` | Array of all non-empty slots |
-| `setContents(items)` | `boolean` | Replace all contents. `items`: array of `{slot, name, count}`. Unspecified slots are cleared |
+| `getItems()` | `{slot, item}[]` | Array of all non-empty slots (`item` is Item object) |
+| `setContents(items)` | `boolean` | Replace all contents. `items`: array of `{slot, item}` or `{slot, name, count}`. Unspecified slots are cleared |
 
 ## Virtual inventories (menus)
 
@@ -60,7 +60,7 @@ menu.pattern([
 });
 
 menu.onClick(function(player, item, click) {
-    player.sendMessage("Click: " + click + " on " + item.name);
+    player.sendMessage("Click: " + click + " on " + item.getName());
 });
 
 // click can be: left_click, right_click, drop
@@ -97,7 +97,7 @@ commands.register("inspectchest", "View chest contents in front of you", functio
     var items = inv.getItems();
     player.sendMessage("§eChest contents (§f" + items.length + "§e items):");
     for (var i = 0; i < items.length; i++) {
-        player.sendMessage("§7Slot §f" + items[i].slot + "§7: §f" + items[i].name + " x" + items[i].count);
+        player.sendMessage("§7Slot §f" + items[i].slot + "§7: §f" + items[i].item.getName() + " x" + items[i].item.getCount());
     }
 });
 ```

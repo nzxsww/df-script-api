@@ -12,8 +12,10 @@ import (
 	"github.com/df-mc/dragonfly/server/entity"
 	"github.com/df-mc/dragonfly/server/entity/effect"
 	dfitem "github.com/df-mc/dragonfly/server/item"
+	"github.com/df-mc/dragonfly/server/item/enchantment"
 	"github.com/df-mc/dragonfly/server/item/inventory"
 	dfplayer "github.com/df-mc/dragonfly/server/player"
+	"strings"
 	"github.com/df-mc/dragonfly/server/player/title"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/df-mc/dragonfly/server/world/particle"
@@ -342,17 +344,13 @@ func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]in
 		// getSize() — retorna la cantidad de slots del inventario.
 		"getSize": func() int { return inv.Size() },
 
-		// getItem(slot) — retorna un mapa { name, count } con el item en el slot dado, o null si está vacío.
+		// getItem(slot) — retorna un itemWrapper o null si está vacío.
 		"getItem": func(slot int) interface{} {
 			stack, err := inv.Item(slot)
 			if err != nil || stack.Empty() {
 				return nil
 			}
-			name, _ := stack.Item().EncodeItem()
-			return map[string]interface{}{
-				"name":  name,
-				"count": stack.Count(),
-			}
+			return newItemWrapper(stack)
 		},
 
 		// setItem(slot, nombre, cantidad) — coloca un item en el slot dado.
@@ -368,6 +366,13 @@ func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]in
 			}
 			return true
 		},
+		// setItemStack(slot, item) — coloca un itemWrapper en el slot dado.
+		"setItemStack": func(slot int, itemObj map[string]interface{}) bool {
+			if raw, ok := itemObj["_stack"].(dfitem.Stack); ok {
+				return inv.SetItem(slot, raw) == nil
+			}
+			return false
+		},
 
 		// addItem(nombre, cantidad) — agrega un item al primer slot libre disponible.
 		// Retorna la cantidad que NO pudo ser agregada (0 si todo fue agregado).
@@ -380,6 +385,15 @@ func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]in
 			stack := dfitem.NewStack(it, count)
 			added, _ := inv.AddItem(stack)
 			return count - added
+		},
+		// addItemStack(item) — agrega un itemWrapper al inventario.
+		// Retorna la cantidad que NO pudo ser agregada.
+		"addItemStack": func(itemObj map[string]interface{}) int {
+			if raw, ok := itemObj["_stack"].(dfitem.Stack); ok {
+				added, _ := inv.AddItem(raw)
+				return raw.Count() - added
+			}
+			return 0
 		},
 
 		// removeItem(nombre, cantidad) — remueve una cantidad del item dado del inventario.
@@ -409,7 +423,7 @@ func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]in
 		},
 
 		// getItems() — retorna un array con todos los items del inventario (slots no vacíos).
-		// Cada elemento: { slot, name, count }
+		// Cada elemento: { slot, item }
 		"getItems": func() []interface{} {
 			var items []interface{}
 			for i := 0; i < inv.Size(); i++ {
@@ -417,11 +431,9 @@ func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]in
 				if err != nil || stack.Empty() {
 					continue
 				}
-				name, _ := stack.Item().EncodeItem()
 				items = append(items, map[string]interface{}{
-					"slot":  i,
-					"name":  name,
-					"count": stack.Count(),
+					"slot": i,
+					"item": newItemWrapper(stack),
 				})
 			}
 			return items
@@ -431,15 +443,19 @@ func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]in
 		// items: array de objetos { slot, name, count }
 		// Los slots no especificados quedan vacíos.
 		"setContents": func(items []interface{}) bool {
-			// Primero limpiar
 			inv.Clear()
-			// Luego colocar cada item
 			for _, item := range items {
 				m, ok := item.(map[string]interface{})
 				if !ok {
 					continue
 				}
 				slot, _ := m["slot"].(int64)
+				if raw, ok := m["item"].(map[string]interface{}); ok {
+					if stack, ok := raw["_stack"].(dfitem.Stack); ok {
+						_ = inv.SetItem(int(slot), stack)
+						continue
+					}
+				}
 				name, _ := m["name"].(string)
 				countVal, _ := m["count"].(int64)
 				if name == "" {
@@ -479,6 +495,128 @@ func newInventoryWrapper(inv *inventory.Inventory, invType string) map[string]in
 
 // newEntityWrapper construye un mapa JS con métodos para interactuar con una entidad del mundo.
 // Funciona con cualquier tipo de entidad (item, text, lightning, tnt, player, living, etc.)
+// enchantmentTypeByName retorna un EnchantmentType dado su nombre.
+func enchantmentTypeByName(name string) (dfitem.EnchantmentType, bool) {
+	switch strings.ToLower(name) {
+	case "sharpness":
+		return enchantment.Sharpness, true
+	case "efficiency":
+		return enchantment.Efficiency, true
+	case "unbreaking":
+		return enchantment.Unbreaking, true
+	case "silk_touch":
+		return enchantment.SilkTouch, true
+	case "power":
+		return enchantment.Power, true
+	case "punch":
+		return enchantment.Punch, true
+	case "flame":
+		return enchantment.Flame, true
+	case "infinity":
+		return enchantment.Infinity, true
+	case "protection":
+		return enchantment.Protection, true
+	case "fire_protection":
+		return enchantment.FireProtection, true
+	case "blast_protection":
+		return enchantment.BlastProtection, true
+	case "projectile_protection":
+		return enchantment.ProjectileProtection, true
+	case "feather_falling":
+		return enchantment.FeatherFalling, true
+	case "thorns":
+		return enchantment.Thorns, true
+	case "respiration":
+		return enchantment.Respiration, true
+	case "aqua_affinity":
+		return enchantment.AquaAffinity, true
+	case "depth_strider":
+		return enchantment.DepthStrider, true
+	case "mending":
+		return enchantment.Mending, true
+	case "vanishing":
+		return enchantment.CurseOfVanishing, true
+	case "fire_aspect":
+		return enchantment.FireAspect, true
+	case "knockback":
+		return enchantment.Knockback, true
+	default:
+		return nil, false
+	}
+}
+
+func enchantmentName(t dfitem.EnchantmentType) string {
+	name := strings.ToLower(t.Name())
+	name = strings.ReplaceAll(name, " ", "_")
+	return name
+}
+
+func newItemWrapper(stack dfitem.Stack) map[string]interface{} {
+	return map[string]interface{}{
+		"getName": func() string {
+			name, _ := stack.Item().EncodeItem()
+			return name
+		},
+		"getCount": func() int { return stack.Count() },
+		"setCount": func(count int) map[string]interface{} {
+			if count < 1 {
+				count = 1
+			}
+			newStack := dfitem.NewStack(stack.Item(), count)
+			newStack = newStack.WithCustomName(stack.CustomName())
+			newStack = newStack.WithLore(stack.Lore()...)
+			newStack = newStack.WithEnchantments(stack.Enchantments()...)
+			newStack = newStack.WithAnvilCost(stack.AnvilCost())
+			if stack.Unbreakable() {
+				newStack = newStack.AsUnbreakable()
+			}
+			if stack.MaxDurability() != -1 {
+				newStack = newStack.WithDurability(stack.Durability())
+			}
+			return newItemWrapper(newStack)
+		},
+		"getDisplayName": func() string { return stack.CustomName() },
+		"setDisplayName": func(name string) map[string]interface{} {
+			return newItemWrapper(stack.WithCustomName(name))
+		},
+		"getLore": func() []string { return stack.Lore() },
+		"setLore": func(lines []string) map[string]interface{} {
+			return newItemWrapper(stack.WithLore(lines...))
+		},
+		"getDurability": func() int { return stack.Durability() },
+		"setDurability": func(d int) map[string]interface{} { return newItemWrapper(stack.WithDurability(d)) },
+		"getMaxDurability": func() int { return stack.MaxDurability() },
+		"isEnchanted": func() bool { return len(stack.Enchantments()) > 0 },
+		"getEnchantments": func() []map[string]interface{} {
+			var res []map[string]interface{}
+			for _, ench := range stack.Enchantments() {
+				name := enchantmentName(ench.Type())
+				res = append(res, map[string]interface{}{
+					"name":  name,
+					"level": ench.Level(),
+				})
+			}
+			return res
+		},
+		"addEnchantment": func(name string, level int) map[string]interface{} {
+			et, ok := enchantmentTypeByName(name)
+			if !ok {
+				return newItemWrapper(stack)
+			}
+			return newItemWrapper(stack.WithEnchantments(dfitem.NewEnchantment(et, level)))
+		},
+		"removeEnchantment": func(name string) map[string]interface{} {
+			et, ok := enchantmentTypeByName(name)
+			if !ok {
+				return newItemWrapper(stack)
+			}
+			return newItemWrapper(stack.WithoutEnchantments(et))
+		},
+		"clone": func() map[string]interface{} { return newItemWrapper(stack) },
+	}
+}
+
+// newEntityWrapper construye un mapa JS con métodos para interactuar con una entidad del mundo.
 func newEntityWrapper(e world.Entity, tx *world.Tx) map[string]interface{} {
 	m := map[string]interface{}{
 		// --- Identidad ---
@@ -869,6 +1007,7 @@ func (l *Loader) loadScript(p *ScriptPlugin, scriptFile string) error {
 	l.registerConfig(vm, p)
 	l.registerWorld(vm, p)
 	l.registerServer(vm, p)
+	l.registerItemAPI(vm, p)
 	l.registerVirtualInventories(vm, p)
 
 	// Leer y ejecutar el script

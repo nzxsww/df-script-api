@@ -389,6 +389,36 @@ function onEnable() {
         console.log("[TEST] broadcast: " + msg);
     });
 
+    // --- Comandos de test Item API ---
+
+    commands.register("itemtest", "Crea un item personalizado y lo agrega", function(player, args) {
+        var it = item.create("minecraft:diamond_sword", 1)
+            .setDisplayName("§bEspada Épica")
+            .setLore(["§7Forjada en dragones", "§7Nivel 10"])
+            .addEnchantment("sharpness", 5)
+            .addEnchantment("unbreaking", 3);
+
+        var inv = player.getInventory();
+        inv.addItemStack(it);
+        player.sendMessage("§aItem personalizado agregado al inventario!");
+        console.log("[TEST] item.create + addEnchantment");
+    });
+
+    commands.register("iteminfo", "Muestra info del item en la mano", function(player, args) {
+        var inv = player.getInventory();
+        var itemInHand = inv.getItem(0); // slot 0 para prueba
+        if (itemInHand === null) {
+            player.sendMessage("§cSlot 0 vacío.");
+            return;
+        }
+        player.sendMessage("§eItem: §f" + itemInHand.getName());
+        player.sendMessage("§eCantidad: §f" + itemInHand.getCount());
+        player.sendMessage("§eDisplayName: §f" + itemInHand.getDisplayName());
+        player.sendMessage("§eLore: §f" + itemInHand.getLore().join(" | "));
+        player.sendMessage("§eEnchanted: §f" + itemInHand.isEnchanted());
+        console.log("[TEST] item info slot 0");
+    });
+
     // --- Comandos de test Virtual Inventory API ---
 
     commands.register("menutest", "Abre un menú virtual de prueba", function(player, args) {
@@ -462,7 +492,8 @@ function onEnable() {
         var items = inv.getItems();
         player.sendMessage("§eInventario (§f" + items.length + "§e slots ocupados de §f" + inv.getSize() + "§e):");
         for (var i = 0; i < items.length; i++) {
-            player.sendMessage("§7Slot §f" + items[i].slot + "§7: §f" + items[i].name + " x" + items[i].count);
+            var it = items[i].item;
+            player.sendMessage("§7Slot §f" + items[i].slot + "§7: §f" + it.getName() + " x" + it.getCount());
         }
         console.log("[TEST] player.getInventory: " + items.length + " items");
     });
@@ -536,7 +567,8 @@ function onEnable() {
         var items = inv.getItems();
         player.sendMessage("§eCofre en §f" + x + "," + y + "," + z + " §e(§f" + items.length + "§e/§f" + inv.getSize() + " slots):");
         for (var i = 0; i < items.length; i++) {
-            player.sendMessage("§7Slot §f" + items[i].slot + "§7: §f" + items[i].name + " x" + items[i].count);
+            var it = items[i].item;
+            player.sendMessage("§7Slot §f" + items[i].slot + "§7: §f" + it.getName() + " x" + it.getCount());
         }
         console.log("[TEST] world.getInventory: " + items.length + " items en cofre");
     });
@@ -602,11 +634,11 @@ function onEnable() {
             return;
         }
         inv.setContents([
-            { slot: 0, name: "minecraft:diamond", count: 64 },
-            { slot: 1, name: "minecraft:gold_ingot", count: 32 },
-            { slot: 2, name: "minecraft:iron_ingot", count: 16 },
-            { slot: 3, name: "minecraft:emerald", count: 8 },
-            { slot: 4, name: "minecraft:netherite_ingot", count: 4 }
+            { slot: 0, item: item.create("minecraft:diamond", 64) },
+            { slot: 1, item: item.create("minecraft:gold_ingot", 32) },
+            { slot: 2, item: item.create("minecraft:iron_ingot", 16) },
+            { slot: 3, item: item.create("minecraft:emerald", 8) },
+            { slot: 4, item: item.create("minecraft:netherite_ingot", 4) }
         ]);
         player.sendMessage("§aContenido predefinido establecido en el cofre!");
         console.log("[TEST] inv.setContents() 5 items");
@@ -630,9 +662,9 @@ function onEnable() {
         if (item === null) {
             player.sendMessage("§7Slot §f" + slot + "§7: §cvacío");
         } else {
-            player.sendMessage("§7Slot §f" + slot + "§7: §f" + item.name + " x" + item.count);
+            player.sendMessage("§7Slot §f" + slot + "§7: §f" + item.getName() + " x" + item.getCount());
         }
-        console.log("[TEST] inv.getItem(" + slot + ")=" + JSON.stringify(item));
+        console.log("[TEST] inv.getItem(" + slot + ")=" + (item ? item.getName() : "vacio"));
     });
 
     commands.register("setslot", "Poner item en un slot del cofre", function(player, args) {

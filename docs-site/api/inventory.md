@@ -23,15 +23,15 @@ var inv = player.getInventory();
 |---|---|---|
 | `getType()` | `string` | Tipo de inventario: `"player"`, `"chest"`, `"barrel"`, `"hopper"`, `"furnace"`, `"blast_furnace"`, `"smoker"`, `"brewing_stand"`, `"container"` |
 | `getSize()` | `number` | Cantidad total de slots del inventario |
-| `getItem(slot)` | `{name, count}\|null` | Item en el slot dado. `null` si está vacío |
+| `getItem(slot)` | `item\|null` | Item en el slot dado (objeto `item`). `null` si está vacío |
 | `setItem(slot, nombre, cantidad)` | `boolean` | Colocar un item en el slot dado. Retorna `true` si tuvo éxito |
 | `addItem(nombre, cantidad)` | `number` | Agrega al primer slot libre. Retorna la cantidad que **no** pudo agregarse (0 = éxito total) |
 | `removeItem(nombre, cantidad)` | `boolean` | Remueve la cantidad dada del item. Retorna `true` si tuvo éxito |
 | `clear()` | — | Vacía todos los slots del inventario |
 | `contains(nombre)` | `boolean` | `true` si el inventario contiene al menos 1 del item dado |
 | `count(nombre)` | `number` | Cantidad total del item dado en todo el inventario |
-| `getItems()` | `{slot, name, count}[]` | Array con todos los slots no vacíos |
-| `setContents(items)` | `boolean` | Reemplaza todo el contenido. `items`: array de `{slot, name, count}`. Los slots no especificados quedan vacíos |
+| `getItems()` | `{slot, item}[]` | Array con todos los slots no vacíos (`item` es objeto Item) |
+| `setContents(items)` | `boolean` | Reemplaza todo el contenido. `items`: array de `{slot, item}` o `{slot, name, count}`. Los slots no especificados quedan vacíos |
 
 ## Inventarios virtuales (menús)
 
@@ -60,7 +60,7 @@ menu.pattern([
 });
 
 menu.onClick(function(player, item, click) {
-    player.sendMessage("Click: " + click + " en " + item.name);
+    player.sendMessage("Click: " + click + " en " + item.getName());
 });
 
 // click puede ser: left_click, right_click, drop
@@ -97,7 +97,7 @@ commands.register("inspeccionarcofre", "Ver contenido del cofre frente a ti", fu
     var items = inv.getItems();
     player.sendMessage("§eContenido del cofre (§f" + items.length + "§e items):");
     for (var i = 0; i < items.length; i++) {
-        player.sendMessage("§7Slot §f" + items[i].slot + "§7: §f" + items[i].name + " x" + items[i].count);
+        player.sendMessage("§7Slot §f" + items[i].slot + "§7: §f" + items[i].item.getName() + " x" + items[i].item.getCount());
     }
 });
 ```
